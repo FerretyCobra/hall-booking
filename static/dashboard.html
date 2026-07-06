@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>IT dashboard &middot; Hall Booking</title>
+  <link rel="stylesheet" href="/static/css/style.css" />
+</head>
+<body>
+  <div class="topbar">
+    <span class="brand"><span class="dot"></span> Hall Booking &middot; IT</span>
+    <span><a href="/">&larr; Booking portal</a> &nbsp; <a href="#" id="link-logout" class="hidden">Sign out</a></span>
+  </div>
+
+  <div class="wrap">
+    <!-- Login -->
+    <div class="card" id="login-card" style="max-width:380px;margin:40px auto">
+      <h1>Sign in</h1>
+      <p class="muted">IT team access only.</p>
+      <div id="login-error"></div>
+      <div class="field"><label for="l-user">Username</label><input id="l-user" type="text" /></div>
+      <div class="field"><label for="l-pass">Password</label><input id="l-pass" type="password" /></div>
+      <button id="btn-login">Sign in</button>
+    </div>
+
+    <!-- App -->
+    <div id="app" class="hidden">
+      <div class="tabs">
+        <div class="tab active" data-tab="live">Live bookings</div>
+        <div class="tab" data-tab="halls">Halls</div>
+        <div class="tab" data-tab="features">Features</div>
+        <div class="tab" data-tab="audit">Audit log</div>
+      </div>
+
+      <!-- Live -->
+      <div class="card tab-body" id="tab-live">
+        <h2>Live bookings <span class="muted" id="live-meta" style="font-weight:400"></span></h2>
+        <div class="inline-form">
+          <div><label>Date</label><input type="date" id="live-date" /></div>
+          <div><label>Status</label><select id="live-status"><option value="">All</option><option value="confirmed">Confirmed</option><option value="cancelled">Cancelled</option></select></div>
+          <div style="flex:0 0 auto"><button class="ghost" id="live-clear">Clear</button></div>
+        </div>
+        <div id="live-table"></div>
+      </div>
+
+      <!-- Halls -->
+      <div class="card tab-body hidden" id="tab-halls">
+        <h2>Halls</h2>
+        <div class="inline-form">
+          <div><label>New hall name</label><input id="h-name" type="text" placeholder="e.g. Boardroom" /></div>
+          <div><label>Seats</label><input id="h-cap" type="number" min="0" value="0" /></div>
+          <div style="flex:0 0 auto"><button id="h-add">Add hall</button></div>
+        </div>
+        <div id="halls-table"></div>
+      </div>
+
+      <!-- Features -->
+      <div class="card tab-body hidden" id="tab-features">
+        <h2>Feature catalog</h2>
+        <div class="inline-form">
+          <div><label>New feature</label><input id="ft-name" type="text" placeholder="e.g. Whiteboard" /></div>
+          <div><label>Type</label><select id="ft-type">
+            <option value="bool">bool (yes/no)</option>
+            <option value="number">number</option>
+            <option value="text">text</option>
+            <option value="single_select">single_select</option>
+            <option value="multi_select">multi_select</option>
+          </select></div>
+          <div style="flex:0 0 auto"><button id="ft-add">Add feature</button></div>
+        </div>
+        <div id="features-list"></div>
+      </div>
+
+      <!-- Audit -->
+      <div class="card tab-body hidden" id="tab-audit">
+        <h2>Audit log</h2>
+        <div id="audit-table"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/js/dashboard.js"></script>
+</body>
+</html>

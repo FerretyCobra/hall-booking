@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Book a hall</title>
+  <link rel="stylesheet" href="/static/css/style.css" />
+</head>
+<body>
+  <div class="topbar">
+    <span class="brand"><span class="dot"></span> Hall Booking</span>
+    <a href="/dashboard">IT dashboard &rarr;</a>
+  </div>
+
+  <div class="wrap">
+    <!-- Step 1: what & when -->
+    <div class="card" id="step-filter">
+      <div class="step-label">Step 1 &middot; What do you need</div>
+      <h1>Find a hall</h1>
+      <div class="row">
+        <div class="field">
+          <label for="f-date">Date</label>
+          <input type="date" id="f-date" />
+        </div>
+        <div class="field">
+          <label for="f-capacity">Minimum seats</label>
+          <input type="number" id="f-capacity" min="0" placeholder="any" />
+        </div>
+        <div class="field">
+          <label for="f-feature">Must have</label>
+          <select id="f-feature"><option value="">Any feature</option></select>
+        </div>
+      </div>
+      <button id="btn-find">Show available halls</button>
+    </div>
+
+    <!-- Step 2: pick hall -->
+    <div class="card hidden" id="step-halls">
+      <div class="step-label">Step 2 &middot; Pick a hall</div>
+      <h2>Halls</h2>
+      <div id="hall-list"></div>
+    </div>
+
+    <!-- Step 3: timeline -->
+    <div class="card hidden" id="step-timeline">
+      <div class="step-label">Step 3 &middot; Pick a time</div>
+      <h2 id="tl-hall">Hall</h2>
+      <div class="legend">
+        <span><span class="sw" style="background:#fff"></span>Available</span>
+        <span><span class="sw" style="background:var(--busy-bg);border-color:var(--busy-line)"></span>Booked</span>
+        <span><span class="sw" style="background:var(--sel-bg);border-color:var(--sel-line)"></span>Selected</span>
+      </div>
+      <div class="grid" id="tl-grid"></div>
+      <div class="summary-bar">
+        <span class="muted" id="tl-summary">No time selected</span>
+        <button id="btn-continue" disabled>Continue &rarr;</button>
+      </div>
+    </div>
+
+    <!-- Step 4: confirm -->
+    <div class="card hidden" id="step-confirm">
+      <div class="step-label">Step 4 &middot; Confirm</div>
+      <h2>Review &amp; confirm</h2>
+      <div id="confirm-summary" class="muted" style="margin-bottom:14px"></div>
+      <div id="confirm-error"></div>
+      <div class="field">
+        <label for="c-name">Your name</label>
+        <input id="c-name" type="text" placeholder="e.g. Gavar S." />
+      </div>
+      <div class="row">
+        <div class="field">
+          <label for="c-dept">Department</label>
+          <select id="c-dept">
+            <option>Engineering</option><option>Sales</option>
+            <option>Operations</option><option>HR</option>
+            <option>Finance</option><option>Other</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="c-purpose">Purpose</label>
+          <input id="c-purpose" type="text" placeholder="e.g. Sprint review" />
+        </div>
+      </div>
+      <p class="muted">You'll get a cancel code to release this slot later. Your device is logged for the audit trail.</p>
+      <button id="btn-book">Confirm booking</button>
+      <button class="ghost" id="btn-back">Back</button>
+    </div>
+
+    <!-- Success -->
+    <div class="card hidden" id="step-done">
+      <div class="success">
+        <div class="check">&#10003;</div>
+        <h2 style="margin-bottom:4px">Booking confirmed</h2>
+        <div class="muted" id="done-line"></div>
+        <div class="muted" style="margin-top:14px">Cancel code</div>
+        <div class="code" id="done-code">&mdash;</div>
+        <div class="muted">Keep this to cancel the booking later.</div>
+        <div style="margin-top:16px"><button class="ghost" id="btn-new">Book another</button></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/js/portal.js"></script>
+</body>
+</html>
