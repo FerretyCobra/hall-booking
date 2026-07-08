@@ -94,6 +94,13 @@ class Booking(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     created_ip = Column(String, nullable=True)  # accountability, since bookers don't log in
 
+    # ICMR NITVAR fields
+    support_staff_requested = Column(Boolean, default=False, nullable=False)
+    scientist_designation = Column(String, nullable=True)
+    project_id = Column(String, nullable=True)
+    attendees_count = Column(Integer, nullable=True)
+    features_requested = Column(Text, nullable=True)
+
     hall = relationship("Hall", back_populates="bookings")
 
 

@@ -3,78 +3,216 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>IT dashboard &middot; Hall Booking</title>
+  <title>IT Dashboard &middot; Hall Booking Portal</title>
   <link rel="stylesheet" href="/static/css/style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
 </head>
 <body>
   <div class="topbar">
-    <span class="brand"><span class="dot"></span> Hall Booking &middot; IT</span>
-    <span><a href="/">&larr; Booking portal</a> &nbsp; <a href="#" id="link-logout" class="hidden">Sign out</a></span>
+    <span class="brand"><span class="dot"></span> ICMR-NITVAR Hall Booking &middot; IT Panel</span>
+    <span>
+      <a href="/" class="dashboard-link" style="margin-right: 12px;">&larr; Booking Portal</a>
+      <a href="#" id="link-logout" class="dashboard-link hidden" style="background: var(--bg-subtle);">Sign out</a>
+    </span>
   </div>
 
   <div class="wrap">
-    <!-- Login -->
-    <div class="card" id="login-card" style="max-width:380px;margin:40px auto">
-      <h1>Sign in</h1>
-      <p class="muted">IT team access only.</p>
+    <!-- Login Card -->
+    <div class="card" id="login-card" style="max-width:380px; margin: 60px auto;">
+      <div class="step-label" style="margin-bottom: 12px;">Authorization</div>
+      <h1>Sign In</h1>
+      <p class="section-desc">IT Management access only.</p>
       <div id="login-error"></div>
-      <div class="field"><label for="l-user">Username</label><input id="l-user" type="text" /></div>
-      <div class="field"><label for="l-pass">Password</label><input id="l-pass" type="password" /></div>
-      <button id="btn-login">Sign in</button>
+      <div class="field">
+        <label for="l-user">Username</label>
+        <input id="l-user" type="text" />
+      </div>
+      <div class="field" style="margin-bottom: 20px;">
+        <label for="l-pass">Password</label>
+        <input id="l-pass" type="password" />
+      </div>
+      <button id="btn-login" style="width: 100%;">Sign in</button>
     </div>
 
-    <!-- App -->
+    <!-- Main Dashboard App -->
     <div id="app" class="hidden">
+      <!-- Dynamic Metric Ribbon -->
+      <div class="metric-ribbon">
+        <div class="metric-card">
+          <div class="metric-val" id="metric-bookings">--</div>
+          <div class="metric-lbl">Live Bookings</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-val" id="metric-halls">--</div>
+          <div class="metric-lbl">Available Halls</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-val" id="metric-features">--</div>
+          <div class="metric-lbl">Custom Features</div>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs -->
       <div class="tabs">
-        <div class="tab active" data-tab="live">Live bookings</div>
-        <div class="tab" data-tab="halls">Halls</div>
-        <div class="tab" data-tab="features">Features</div>
-        <div class="tab" data-tab="audit">Audit log</div>
+        <div class="tab active" data-tab="live">Live Bookings</div>
+        <div class="tab" data-tab="halls">Manage Halls</div>
+        <div class="tab" data-tab="features">Feature Catalog</div>
+        <div class="tab" data-tab="audit">System Audit Log</div>
       </div>
 
-      <!-- Live -->
+      <!-- Live Bookings Tab -->
       <div class="card tab-body" id="tab-live">
-        <h2>Live bookings <span class="muted" id="live-meta" style="font-weight:400"></span></h2>
+        <h2 style="margin-bottom: 12px;">Live Bookings <span id="live-meta" style="font-weight:400; font-size:13.5px; color: var(--text-muted); margin-left: 8px;"></span></h2>
+        
         <div class="inline-form">
-          <div><label>Date</label><input type="date" id="live-date" /></div>
-          <div><label>Status</label><select id="live-status"><option value="">All</option><option value="confirmed">Confirmed</option><option value="cancelled">Cancelled</option></select></div>
-          <div style="flex:0 0 auto"><button class="ghost" id="live-clear">Clear</button></div>
+          <div>
+            <label>Date</label>
+            <input type="date" id="live-date" />
+          </div>
+          <div>
+            <label>Status</label>
+            <select id="live-status">
+              <option value="">All</option>
+              <option value="confirmed">Confirmed</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+          </div>
+          <div style="flex:0 0 auto">
+            <button class="ghost" id="live-clear">Clear Filters</button>
+          </div>
         </div>
-        <div id="live-table"></div>
+        
+        <div class="table-responsive">
+          <div id="live-table"></div>
+        </div>
       </div>
 
-      <!-- Halls -->
-      <div class="card tab-body hidden" id="tab-halls">
-        <h2>Halls</h2>
-        <div class="inline-form">
-          <div><label>New hall name</label><input id="h-name" type="text" placeholder="e.g. Boardroom" /></div>
-          <div><label>Seats</label><input id="h-cap" type="number" min="0" value="0" /></div>
-          <div style="flex:0 0 auto"><button id="h-add">Add hall</button></div>
+      <!-- Halls Management Tab -->
+      <div class="tab-body hidden" id="tab-halls">
+        <!-- List View -->
+        <div class="card" id="halls-list-view">
+          <h2>Manage Conference Halls & Rooms</h2>
+          <p class="instructions">Click on a hall's name below to open its detail page and edit details or assign hardware features.</p>
+          
+          <div class="inline-form">
+            <div>
+              <label>New Hall Name</label>
+              <input id="h-name" type="text" placeholder="e.g. Boardroom" />
+            </div>
+            <div>
+              <label>Seats</label>
+              <input id="h-cap" type="number" min="0" value="0" />
+            </div>
+            <div style="flex:0 0 auto">
+              <button id="h-add">Add Hall</button>
+            </div>
+          </div>
+          
+          <div class="table-responsive">
+            <div id="halls-table"></div>
+          </div>
         </div>
-        <div id="halls-table"></div>
+
+        <!-- Detail View (Hidden by default) -->
+        <div class="card hidden" id="hall-detail-view">
+          <div style="margin-bottom: 20px;">
+            <button class="ghost" id="btn-detail-back" style="padding: 6px 14px; font-size: 13px;">&larr; Back to Halls</button>
+          </div>
+          
+          <h2 id="detail-hall-title">Hall Details</h2>
+          
+          <div class="detail-layout">
+            <!-- Left Side: Basic Info -->
+            <div style="border-right: 1px solid var(--border); padding-right: 24px;">
+              <h3>Configure Properties</h3>
+              <div id="detail-hall-error"></div>
+              <div class="field">
+                <label for="detail-hall-name">Hall Name</label>
+                <input type="text" id="detail-hall-name" />
+              </div>
+              <div class="field">
+                <label for="detail-hall-cap">Seat Capacity</label>
+                <input type="number" id="detail-hall-cap" min="0" />
+              </div>
+              <button id="btn-detail-save" style="width: 100%;">Save General Details</button>
+            </div>
+            
+            <!-- Right Side: Features Assignment -->
+            <div>
+              <h3>Assigned Features</h3>
+              <div id="assigned-features-list" style="margin-bottom: 24px;">
+                <!-- Dynamically populated assigned features -->
+              </div>
+              
+              <h3 style="border-top: 1px solid var(--border); padding-top: 16px; margin-top: 16px;">Assign New Feature</h3>
+              <div class="field">
+                <label for="detail-assign-feat">Select Feature</label>
+                <select id="detail-assign-feat">
+                  <option value="">-- Choose Feature --</option>
+                </select>
+              </div>
+              
+              <!-- Value Field Container (shown for text/number/bool) -->
+              <div class="field hidden" id="div-assign-val">
+                <label id="lbl-assign-val" for="detail-assign-val">Value</label>
+                <!-- Can be input text, number or checkbox depending on feature type -->
+                <div id="container-assign-val"></div>
+              </div>
+              
+              <!-- Options Dropdown Container (shown for single/multi select) -->
+              <div class="field hidden" id="div-assign-opt">
+                <label for="detail-assign-opt">Select Option Value</label>
+                <select id="detail-assign-opt"></select>
+              </div>
+
+              <!-- Quantity Field (optional, for numeric/options features where quantity applies) -->
+              <div class="field hidden" id="div-assign-qty">
+                <label for="detail-assign-qty">Quantity</label>
+                <input type="number" id="detail-assign-qty" min="1" value="1" />
+              </div>
+              
+              <button id="btn-detail-assign" style="width: 100%;">Assign Feature</button>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <!-- Features -->
+      <!-- Features Catalog Tab -->
       <div class="card tab-body hidden" id="tab-features">
-        <h2>Feature catalog</h2>
+        <h2>Feature Catalog</h2>
+        <p class="instructions">Define global feature categories (e.g. Projector, Mic). Options can then be added to select-type features.</p>
+        
         <div class="inline-form">
-          <div><label>New feature</label><input id="ft-name" type="text" placeholder="e.g. Whiteboard" /></div>
-          <div><label>Type</label><select id="ft-type">
-            <option value="bool">bool (yes/no)</option>
-            <option value="number">number</option>
-            <option value="text">text</option>
-            <option value="single_select">single_select</option>
-            <option value="multi_select">multi_select</option>
-          </select></div>
-          <div style="flex:0 0 auto"><button id="ft-add">Add feature</button></div>
+          <div>
+            <label>Feature Name</label>
+            <input id="ft-name" type="text" placeholder="e.g. Wireless presentation" />
+          </div>
+          <div>
+            <label>Value Type</label>
+            <select id="ft-type">
+              <option value="bool">bool (yes/no)</option>
+              <option value="number">number</option>
+              <option value="text">text</option>
+              <option value="single_select">single_select</option>
+              <option value="multi_select">multi_select</option>
+            </select>
+          </div>
+          <div style="flex:0 0 auto">
+            <button id="ft-add">Add Feature</button>
+          </div>
         </div>
+        
         <div id="features-list"></div>
       </div>
 
-      <!-- Audit -->
+      <!-- Audit Log Tab -->
       <div class="card tab-body hidden" id="tab-audit">
-        <h2>Audit log</h2>
-        <div id="audit-table"></div>
+        <h2>System Audit Log</h2>
+        <p class="instructions">Archived trace of administrative actions across the platform.</p>
+        
+        <div class="table-responsive">
+          <div id="audit-table"></div>
+        </div>
       </div>
     </div>
   </div>

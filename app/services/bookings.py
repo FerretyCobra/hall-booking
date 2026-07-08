@@ -84,6 +84,11 @@ def create_booking(db: Session, data, ip: str | None) -> Booking:
             status="confirmed",
             cancel_code=_new_code(),
             created_ip=ip,
+            support_staff_requested=data.support_staff_requested,
+            scientist_designation=data.scientist_designation,
+            project_id=data.project_id,
+            attendees_count=data.attendees_count,
+            features_requested=data.features_requested,
         )
         db.add(booking)
         db.flush()

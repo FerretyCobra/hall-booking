@@ -73,6 +73,11 @@ class BookingIn(BaseModel):
     booked_by: str
     dept: Optional[str] = None
     purpose: Optional[str] = None
+    support_staff_requested: bool = False
+    scientist_designation: Optional[str] = None
+    project_id: Optional[str] = None
+    attendees_count: Optional[int] = None
+    features_requested: Optional[str] = None
 
 
 class CancelIn(BaseModel):
@@ -89,6 +94,11 @@ class BookingOut(BaseModel):
     dept: Optional[str] = None
     purpose: Optional[str] = None
     status: str
+    support_staff_requested: bool
+    scientist_designation: Optional[str] = None
+    project_id: Optional[str] = None
+    attendees_count: Optional[int] = None
+    features_requested: Optional[str] = None
 
     class Config:
         from_attributes = True

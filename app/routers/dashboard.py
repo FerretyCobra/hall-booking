@@ -33,6 +33,11 @@ def bookings(
             "booked_by": b.booked_by, "dept": b.dept, "purpose": b.purpose,
             "status": b.status, "created_ip": b.created_ip,
             "created_at": b.created_at.isoformat() if b.created_at else None,
+            "support_staff_requested": b.support_staff_requested,
+            "scientist_designation": b.scientist_designation,
+            "project_id": b.project_id,
+            "attendees_count": b.attendees_count,
+            "features_requested": b.features_requested,
         }
         for b, h in rows
     ]

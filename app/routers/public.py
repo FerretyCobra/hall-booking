@@ -95,7 +95,12 @@ def availability(hall_id: int, on: date, db: Session = Depends(get_db)):
         "date": on.isoformat(),
         "bookings": [
             {"start": b.start_time, "end": b.end_time,
-             "booked_by": b.booked_by, "dept": b.dept, "purpose": b.purpose}
+             "booked_by": b.booked_by, "dept": b.dept, "purpose": b.purpose,
+             "support_staff_requested": b.support_staff_requested,
+             "scientist_designation": b.scientist_designation,
+             "project_id": b.project_id,
+             "attendees_count": b.attendees_count,
+             "features_requested": b.features_requested}
             for b in rows
         ],
     }
@@ -115,7 +120,12 @@ def book(payload: BookingIn, request: Request, db: Session = Depends(get_db)):
         raise HTTPException(409, detail)
     return {"id": b.id, "cancel_code": b.cancel_code,
             "start": b.start_time, "end": b.end_time,
-            "booked_by": b.booked_by, "dept": b.dept}
+            "booked_by": b.booked_by, "dept": b.dept,
+            "support_staff_requested": b.support_staff_requested,
+            "scientist_designation": b.scientist_designation,
+            "project_id": b.project_id,
+            "attendees_count": b.attendees_count,
+            "features_requested": b.features_requested}
 
 
 @router.post("/bookings/{booking_id}/cancel")

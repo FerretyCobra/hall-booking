@@ -3,99 +3,228 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Book a hall</title>
+  <title>ICMR NITVAR - Hall Booking Portal</title>
   <link rel="stylesheet" href="/static/css/style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
 </head>
 <body>
   <div class="topbar">
-    <span class="brand"><span class="dot"></span> Hall Booking</span>
-    <a href="/dashboard">IT dashboard &rarr;</a>
+    <span class="brand"><span class="dot"></span> ICMR-NITVAR Hall Portal</span>
+    <a href="/dashboard" class="dashboard-link">IT Dashboard &rarr;</a>
   </div>
 
   <div class="wrap">
-    <!-- Step 1: what & when -->
-    <div class="card" id="step-filter">
-      <div class="step-label">Step 1 &middot; What do you need</div>
-      <h1>Find a hall</h1>
-      <div class="row">
-        <div class="field">
-          <label for="f-date">Date</label>
-          <input type="date" id="f-date" />
-        </div>
-        <div class="field">
-          <label for="f-capacity">Minimum seats</label>
-          <input type="number" id="f-capacity" min="0" placeholder="any" />
-        </div>
-        <div class="field">
-          <label for="f-feature">Must have</label>
-          <select id="f-feature"><option value="">Any feature</option></select>
-        </div>
-      </div>
-      <button id="btn-find">Show available halls</button>
+    <!-- Hero Header Banner -->
+    <div class="hero-section" id="hero-banner">
+      <h1>Hall Booking</h1>
+      <p>Reserve conference rooms, configure required technical amenities, and register your meeting in 4 easy steps.</p>
     </div>
 
-    <!-- Step 2: pick hall -->
-    <div class="card hidden" id="step-halls">
-      <div class="step-label">Step 2 &middot; Pick a hall</div>
-      <h2>Halls</h2>
-      <div id="hall-list"></div>
+    <!-- Step Progress Wizard -->
+    <div class="wizard-progress" id="step-wizard">
+      <div class="wizard-step active" id="wstep-1">
+        <div class="wizard-dot">1</div>
+        <div class="wizard-label">Select Room</div>
+      </div>
+      <div class="wizard-step" id="wstep-2">
+        <div class="wizard-dot">2</div>
+        <div class="wizard-label">Date & Time</div>
+      </div>
+      <div class="wizard-step" id="wstep-3">
+        <div class="wizard-dot">3</div>
+        <div class="wizard-label">Features</div>
+      </div>
+      <div class="wizard-step" id="wstep-4">
+        <div class="wizard-dot">4</div>
+        <div class="wizard-label">Register</div>
+      </div>
     </div>
 
-    <!-- Step 3: timeline -->
-    <div class="card hidden" id="step-timeline">
-      <div class="step-label">Step 3 &middot; Pick a time</div>
-      <h2 id="tl-hall">Hall</h2>
-      <div class="legend">
-        <span><span class="sw" style="background:#fff"></span>Available</span>
-        <span><span class="sw" style="background:var(--busy-bg);border-color:var(--busy-line)"></span>Booked</span>
-        <span><span class="sw" style="background:var(--sel-bg);border-color:var(--sel-line)"></span>Selected</span>
+    <!-- Step 1: Choose Hall -->
+    <div class="card" id="step-halls">
+      <h2>Available Conference Halls & Rooms</h2>
+      <p class="section-desc">Select a space below to configure its availability options.</p>
+      
+      <div class="hall-grid" id="hall-grid-container">
+        <!-- Populated dynamically via JS -->
       </div>
-      <div class="grid" id="tl-grid"></div>
+    </div>
+
+    <!-- Step 2: Choose Day & Time -->
+    <div class="card hidden" id="step-datetime">
+      <h2 id="selected-hall-name">Selected Hall</h2>
+      
+      <h3>Select Date</h3>
+      <!-- Horizontal Day Picker -->
+      <div class="day-picker-container">
+        <div class="day-picker-track" id="day-picker-track">
+          <!-- Dynamically populated e.g. THU 09 JUL -->
+        </div>
+      </div>
+
+      <div class="time-header-row">
+        <h3>Select Time</h3>
+        <button type="button" class="toggle-btn" id="btn-toggle-custom-time">Use Custom Time Input</button>
+      </div>
+
+      <!-- Standard 15-Minute Grid Selector -->
+      <div id="grid-selector-container">
+        <p class="instructions">Click starting time slot, then click ending time slot. Selected slots must be contiguous.</p>
+        <div class="legend">
+          <span><span class="sw" style="background:#ffffff"></span>Available</span>
+          <span><span class="sw" style="background:#f1f5f9"></span>Booked</span>
+          <span><span class="sw" style="background:var(--primary)"></span>Selected</span>
+        </div>
+        <div class="grid" id="tl-grid"></div>
+      </div>
+
+      <!-- Custom Time Range Input (Hidden by default) -->
+      <div id="custom-time-container" class="hidden">
+        <p class="instructions">Enter your custom meeting start and end times (e.g. 10:15 - 10:45) at 15-minute intervals.</p>
+        <div class="row">
+          <div class="field">
+            <label for="c-start-time">Start Time</label>
+            <input type="time" id="c-start-time" min="09:30" max="17:30" step="900" />
+          </div>
+          <div class="field">
+            <label for="c-end-time">End Time</label>
+            <input type="time" id="c-end-time" min="09:30" max="17:30" step="900" />
+          </div>
+        </div>
+      </div>
+
       <div class="summary-bar">
-        <span class="muted" id="tl-summary">No time selected</span>
-        <button id="btn-continue" disabled>Continue &rarr;</button>
+        <span class="instructions" id="tl-summary" style="font-weight: 600; margin-bottom: 0;">No time selected</span>
+        <div class="button-group">
+          <button class="ghost" id="btn-back-to-halls">Back</button>
+          <button id="btn-continue-to-features" disabled>Continue &rarr;</button>
+        </div>
       </div>
     </div>
 
-    <!-- Step 4: confirm -->
-    <div class="card hidden" id="step-confirm">
-      <div class="step-label">Step 4 &middot; Confirm</div>
-      <h2>Review &amp; confirm</h2>
-      <div id="confirm-summary" class="muted" style="margin-bottom:14px"></div>
-      <div id="confirm-error"></div>
-      <div class="field">
-        <label for="c-name">Your name</label>
-        <input id="c-name" type="text" placeholder="e.g. Gavar S." />
+    <!-- Step 3: Features & Support Staff -->
+    <div class="card hidden" id="step-features">
+      <h2>Configure Hardware & Assistance</h2>
+      <p class="instructions">Select the hardware tools you need and request technical stand-by staff.</p>
+
+      <div style="margin-bottom: 24px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 8px; margin-bottom: 16px;">
+          <h3 style="margin: 0;">Available Features</h3>
+          <button type="button" class="ghost" id="btn-select-all-feats" style="padding: 4px 10px; font-size: 11.5px;">Select All</button>
+        </div>
+        <div id="hall-features-list">
+          <!-- Dynamic checkboxes -->
+        </div>
       </div>
+
+      <div class="support-staff-card" style="border-left: 3px solid var(--primary); padding-left: 18px; background: var(--bg-subtle);">
+        <div class="step-label" style="margin-bottom: 8px; background: var(--bg);">IT Support Service</div>
+        <label class="checkbox-label">
+          <input type="checkbox" id="c-support-staff" />
+          <div class="checkbox-custom"></div>
+          <div>
+            <strong>Request IT Support Staff Presence</strong>
+            <span class="subtext">A technical officer will be assigned to be present in the hall during your meeting.</span>
+          </div>
+        </label>
+      </div>
+
+      <div class="summary-bar">
+        <span class="instructions" id="features-summary-text" style="font-weight: 600; margin-bottom: 0;">No special features selected</span>
+        <div class="button-group">
+          <button class="ghost" id="btn-back-to-datetime">Back</button>
+          <button id="btn-continue-to-info">Continue &rarr;</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 4: ICMR NITVAR Information -->
+    <div class="card hidden" id="step-confirm">
+      <h2>Scientist & Meeting Details</h2>
+      <div id="confirm-summary" class="summary-box"></div>
+      <div id="confirm-error"></div>
+
       <div class="row">
         <div class="field">
-          <label for="c-dept">Department</label>
+          <label for="c-name">Scientist / Staff Name</label>
+          <input id="c-name" type="text" placeholder="e.g. Dr. Amit Sharma" required />
+        </div>
+        <div class="field">
+          <label for="c-designation">Designation</label>
+          <select id="c-designation">
+            <option>Scientist G (Director)</option>
+            <option>Scientist F</option>
+            <option>Scientist E</option>
+            <option>Scientist D</option>
+            <option>Scientist C</option>
+            <option>Scientist B</option>
+            <option>Technical Officer</option>
+            <option>Research Assistant</option>
+            <option>Other Staff</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="field">
+          <label for="c-dept">Department / Division</label>
           <select id="c-dept">
-            <option>Engineering</option><option>Sales</option>
-            <option>Operations</option><option>HR</option>
-            <option>Finance</option><option>Other</option>
+            <option>Virology</option>
+            <option>Epidemiology & Public Health</option>
+            <option>Immunology</option>
+            <option>Bioinformatics & Data Science</option>
+            <option>Clinical Research</option>
+            <option>Administration / Accounts</option>
+            <option>Other Division</option>
           </select>
         </div>
         <div class="field">
-          <label for="c-purpose">Purpose</label>
-          <input id="c-purpose" type="text" placeholder="e.g. Sprint review" />
+          <label for="c-project-id">Project ID / Grant Code (Optional)</label>
+          <input id="c-project-id" type="text" placeholder="e.g. NITVAR-2026-VIR-04" />
         </div>
       </div>
-      <p class="muted">You'll get a cancel code to release this slot later. Your device is logged for the audit trail.</p>
-      <button id="btn-book">Confirm booking</button>
-      <button class="ghost" id="btn-back">Back</button>
+
+      <div class="row">
+        <div class="field">
+          <label for="c-purpose">Purpose of Meeting</label>
+          <input id="c-purpose" type="text" placeholder="e.g. Outbreak review meeting" required />
+        </div>
+        <div class="field">
+          <label for="c-attendees">Number of Attendees</label>
+          <input id="c-attendees" type="number" min="1" max="500" value="10" />
+        </div>
+      </div>
+
+      <div class="warning-note">
+        Note: Saving your cancel code is mandatory. Devices IP addresses are captured for verification audit trails.
+      </div>
+
+      <div class="button-group" style="margin-top: 24px;">
+        <button class="ghost" id="btn-back-to-features">Back</button>
+        <button id="btn-book" style="width: 100%;">Confirm & Register Booking</button>
+      </div>
     </div>
 
-    <!-- Success -->
+    <!-- Success Screen -->
     <div class="card hidden" id="step-done">
       <div class="success">
         <div class="check">&#10003;</div>
-        <h2 style="margin-bottom:4px">Booking confirmed</h2>
-        <div class="muted" id="done-line"></div>
-        <div class="muted" style="margin-top:14px">Cancel code</div>
-        <div class="code" id="done-code">&mdash;</div>
-        <div class="muted">Keep this to cancel the booking later.</div>
-        <div style="margin-top:16px"><button class="ghost" id="btn-new">Book another</button></div>
+        <h2>Booking Registered Successfully</h2>
+        <p class="success-subtitle">ICMR NITVAR Hall Booking Portal</p>
+        
+        <div class="done-details-box" id="done-details">
+          <!-- Populated dynamically -->
+        </div>
+
+        <div class="cancel-code-container">
+          <div class="muted">Unique Cancel Code</div>
+          <div class="code" id="done-code">&mdash;</div>
+          <div class="muted subtext">Save this code. You will need it to cancel or modify this booking.</div>
+        </div>
+
+        <div style="margin-top:24px;">
+          <button class="ghost" id="btn-new">Register Another Booking</button>
+        </div>
       </div>
     </div>
   </div>
