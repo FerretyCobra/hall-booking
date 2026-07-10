@@ -57,9 +57,11 @@
         <div class="tab active" data-tab="live">Live Bookings</div>
         <div class="tab" data-tab="halls">Manage Halls</div>
         <div class="tab" data-tab="features">Feature Catalog</div>
+        <div class="tab" data-tab="dropdowns">Dropdown Config</div>
         <div class="tab" data-tab="cancel">Cancel Booking</div>
         <div class="tab" data-tab="security">Security</div>
         <div class="tab" data-tab="audit">System Audit Log</div>
+        <div class="tab" data-tab="settings">System Settings</div>
       </div>
 
       <!-- Live Bookings Tab -->
@@ -76,6 +78,7 @@
             <select id="live-status">
               <option value="">All</option>
               <option value="confirmed">Confirmed</option>
+              <option value="pending_approval">Pending Approval</option>
               <option value="cancelled">Cancelled</option>
             </select>
           </div>
@@ -109,6 +112,12 @@
               <label>Image Filename (Optional)</label>
               <input id="h-image" type="text" placeholder="e.g. boardroom.jpg" />
             </div>
+            <div style="flex: 1 0 160px; display: flex; flex-direction: column; justify-content: flex-end;">
+              <label class="checkbox-label" style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px; cursor: pointer;">
+                <input type="checkbox" id="h-approval" style="width: auto; margin: 0;" />
+                <span style="font-size: 13px; font-weight: 500;">Director Approval?</span>
+              </label>
+            </div>
             <div style="flex:0 0 auto">
               <button id="h-add">Add Hall</button>
             </div>
@@ -139,6 +148,12 @@
               <div class="field">
                 <label for="detail-hall-cap">Seat Capacity</label>
                 <input type="number" id="detail-hall-cap" min="0" />
+              </div>
+              <div class="field" style="margin-bottom: 16px;">
+                <label class="checkbox-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                  <input type="checkbox" id="detail-hall-approval" style="width: auto; margin: 0;" />
+                  <strong style="font-size: 13px;">Requires Director Approval</strong>
+                </label>
               </div>
               <button id="btn-detail-save" style="width: 100%; margin-bottom: 24px;">Save General Details</button>
               
@@ -224,6 +239,46 @@
         <div id="features-list"></div>
       </div>
 
+      <!-- Dropdown Config Tab -->
+      <div class="card tab-body hidden" id="tab-dropdowns">
+        <h2>Configure Booking Form Dropdowns</h2>
+        <p class="instructions">Add or remove choices for designations and departments that appear in the scientist booking form.</p>
+        <div id="dropdowns-error"></div>
+        
+        <div class="inline-form" style="margin-bottom: 24px;">
+          <div>
+            <label for="dd-category">Category</label>
+            <select id="dd-category">
+              <option value="department">Department / Division</option>
+              <option value="designation">Scientist Designation</option>
+              <option value="stationery">Stationery Option</option>
+            </select>
+          </div>
+          <div>
+            <label for="dd-value">Option Value</label>
+            <input type="text" id="dd-value" placeholder="e.g. Nanotechnology" />
+          </div>
+          <div style="flex:0 0 auto">
+            <button id="btn-add-dropdown">Add Option</button>
+          </div>
+        </div>
+        
+        <div class="table-responsive">
+          <table style="width: 100%; border-collapse: collapse; margin-top: 12px;">
+            <thead>
+              <tr style="border-bottom: 2px solid var(--border); text-align: left;">
+                <th style="padding: 10px;">Category</th>
+                <th style="padding: 10px;">Value</th>
+                <th style="padding: 10px; text-align: right;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="dropdowns-table-body">
+              <!-- Dynamically populated options -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       <!-- Audit Log Tab -->
       <div class="card tab-body hidden" id="tab-audit">
         <h2>System Audit Log</h2>
@@ -232,6 +287,101 @@
         <div class="table-responsive">
           <div id="audit-table"></div>
         </div>
+      </div>
+
+      <!-- System Settings Tab -->
+      <div class="card tab-body hidden" id="tab-settings">
+        <h2>System & Email Configuration</h2>
+        <p class="instructions">Configure SMTP outbound email servers, recipient emails, and custom daily notifications email body templates.</p>
+        <div id="settings-error"></div>
+        <div id="settings-success"></div>
+
+        <form id="settings-form" onsubmit="return false;">
+          <h3 style="margin-top: 24px; margin-bottom: 12px; border-bottom: 1px solid var(--border); padding-bottom: 8px;">SMTP Outbound Server Settings</h3>
+          <div class="row">
+            <div class="field">
+              <label for="set-smtp-host">SMTP Server Host</label>
+              <input type="text" id="set-smtp-host" placeholder="e.g. smtp.gmail.com" />
+            </div>
+            <div class="field">
+              <label for="set-smtp-port">SMTP Port</label>
+              <input type="number" id="set-smtp-port" placeholder="e.g. 587" />
+            </div>
+          </div>
+          <div class="row">
+            <div class="field">
+              <label for="set-smtp-username">SMTP Username / Email</label>
+              <input type="text" id="set-smtp-username" placeholder="e.g. your-email@icmr-nitvar.res.in" />
+            </div>
+            <div class="field">
+              <label for="set-smtp-password">SMTP Password</label>
+              <input type="password" id="set-smtp-password" placeholder="••••••••" />
+            </div>
+          </div>
+          <div class="row">
+            <div class="field">
+              <label for="set-smtp-from">SMTP From Address</label>
+              <input type="email" id="set-smtp-from" placeholder="e.g. noreply@icmr-nitvar.res.in" />
+            </div>
+            <div class="field" style="display: flex; align-items: center; gap: 12px; margin-top: 28px;">
+              <label class="checkbox-label" style="margin: 0;">
+                <input type="checkbox" id="set-smtp-use-tls" />
+                <div class="checkbox-custom"></div>
+                <strong>Use TLS</strong>
+              </label>
+            </div>
+          </div>
+
+          <h3 style="margin-top: 32px; margin-bottom: 12px; border-bottom: 1px solid var(--border); padding-bottom: 8px;">Department Recipient Addresses</h3>
+          <div class="row">
+            <div class="field">
+              <label for="set-director-email">Director's Office Email</label>
+              <input type="email" id="set-director-email" placeholder="director@icmr-nitvar.res.in" />
+            </div>
+            <div class="field">
+              <label for="set-email-housekeeping">Housekeeping Dept Email</label>
+              <input type="email" id="set-email-housekeeping" placeholder="housekeeping@icmr-nitvar.res.in" />
+            </div>
+          </div>
+          <div class="row">
+            <div class="field">
+              <label for="set-email-it">IT Support Dept Email</label>
+              <input type="email" id="set-email-it" placeholder="it-support@icmr-nitvar.res.in" />
+            </div>
+            <div class="field">
+              <label for="set-email-stationery">Stationery Store Email</label>
+              <input type="email" id="set-email-stationery" placeholder="stationery@icmr-nitvar.res.in" />
+            </div>
+          </div>
+          <div class="row">
+            <div class="field" style="max-width: 50%;">
+              <label for="set-email-canteen">Canteen / Catering Email</label>
+              <input type="email" id="set-email-canteen" placeholder="canteen@icmr-nitvar.res.in" />
+            </div>
+          </div>
+
+          <h3 style="margin-top: 32px; margin-bottom: 12px; border-bottom: 1px solid var(--border); padding-bottom: 8px;">HTML Email Message Templates</h3>
+          <p class="instructions" style="color: var(--text-muted); font-size: 12.5px;">You can customize the HTML emails sent daily. Be sure to include <code>{date}</code> and <code>{table}</code> placeholders so the daily date and schedule table render correctly.</p>
+          
+          <div class="field">
+            <label for="set-template-housekeeping">Housekeeping Daily Email Template</label>
+            <textarea id="set-template-housekeeping" rows="4" style="font-family: monospace; width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px;"></textarea>
+          </div>
+          <div class="field" style="margin-top: 16px;">
+            <label for="set-template-it">IT Support Daily Email Template</label>
+            <textarea id="set-template-it" rows="4" style="font-family: monospace; width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px;"></textarea>
+          </div>
+          <div class="field" style="margin-top: 16px;">
+            <label for="set-template-stationery">Stationery Requirements Email Template</label>
+            <textarea id="set-template-stationery" rows="4" style="font-family: monospace; width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px;"></textarea>
+          </div>
+          <div class="field" style="margin-top: 16px; margin-bottom: 24px;">
+            <label for="set-template-canteen">Canteen Catering Email Template</label>
+            <textarea id="set-template-canteen" rows="4" style="font-family: monospace; width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px;"></textarea>
+          </div>
+
+          <button id="btn-save-settings" style="width: 100%; padding: 12px; font-size: 15px; font-weight: bold; background: var(--primary); color: white; border: none; border-radius: 6px; cursor: pointer; margin-bottom: 20px;">Save All Configuration Settings</button>
+        </form>
       </div>
 
       <!-- Cancel Booking Tab -->

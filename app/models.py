@@ -29,6 +29,7 @@ class Hall(Base):
     name = Column(String, nullable=False)
     capacity = Column(Integer, nullable=False, default=0)
     image = Column(String, nullable=True)  # custom picture filename/URL
+    requires_approval = Column(Boolean, nullable=False, default=False)
     active = Column(Boolean, nullable=False, default=True)  # soft-delete via active=False
     created_at = Column(DateTime, default=datetime.utcnow)
 
@@ -90,19 +91,44 @@ class Booking(Base):
     booked_by = Column(String, nullable=False)
     dept = Column(String, nullable=True)
     purpose = Column(String, nullable=True)
-    status = Column(String, nullable=False, default="confirmed")  # confirmed | cancelled
+    status = Column(String, nullable=False, default="confirmed")  # confirmed | cancelled | pending_approval
     cancel_code = Column(String, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     created_ip = Column(String, nullable=True)  # accountability, since bookers don't log in
 
+    # Coordinator Details
+    coordinator_name = Column(String, nullable=True)
+    coordinator_phone = Column(String, nullable=True)
+    coordinator_email = Column(String, nullable=True)
+
+    # Director Approval token
+    approval_token = Column(String, nullable=True)
+
+    # Virtual Meeting details
+    virtual_meeting_requested = Column(Boolean, default=False, nullable=False)
+    meeting_link = Column(String, nullable=True)
+
+    # Stationery & Food details
+    stationery_requested = Column(String, nullable=True)
+    food_requested = Column(String, nullable=True)
+
     # ICMR NITVAR fields
     support_staff_requested = Column(Boolean, default=False, nullable=False)
+    housekeeping_requested = Column(Boolean, default=False, nullable=False)
     scientist_designation = Column(String, nullable=True)
     project_id = Column(String, nullable=True)
     attendees_count = Column(Integer, nullable=True)
     features_requested = Column(Text, nullable=True)
 
     hall = relationship("Hall", back_populates="bookings")
+
+
+class DropdownConfig(Base):
+    __tablename__ = "dropdown_configs"
+    id = Column(Integer, primary_key=True)
+    category = Column(String, nullable=False)  # e.g. "department", "designation"
+    value = Column(String, nullable=False)
+    active = Column(Boolean, nullable=False, default=True)
 
 
 class AuditLog(Base):
@@ -115,3 +141,9 @@ class AuditLog(Base):
     actor_ip = Column(String, nullable=True)
     detail = Column(Text, nullable=True)
     ts = Column(DateTime, default=datetime.utcnow)
+
+
+class SystemSetting(Base):
+    __tablename__ = "system_settings"
+    key = Column(String, primary_key=True)
+    value = Column(Text, nullable=True)

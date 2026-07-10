@@ -23,3 +23,22 @@ DEFAULT_ADMIN_PASS = os.environ.get("HALL_ADMIN_PASS", "admin")
 DAY_START = "09:00"
 DAY_END = "18:00"
 SLOT_MINUTES = 30
+
+# SMTP & Email Configurations
+SMTP_HOST = os.environ.get("SMTP_HOST", "localhost")
+SMTP_PORT = int(os.environ.get("SMTP_PORT", 1025))
+SMTP_USERNAME = os.environ.get("SMTP_USERNAME", None)
+SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", None)
+SMTP_FROM = os.environ.get("SMTP_FROM", "noreply@icmr-nitvar.res.in")
+SMTP_USE_TLS = os.environ.get("SMTP_USE_TLS", "False").lower() in ("true", "1", "yes")
+
+DIRECTOR_EMAIL = os.environ.get("DIRECTOR_EMAIL", "director@icmr-nitvar.res.in")
+
+# Department recipients
+DEPARTMENT_EMAILS = {
+    "housekeeping": os.environ.get("EMAIL_HOUSEKEEPING", "housekeeping@icmr-nitvar.res.in"),
+    "it": os.environ.get("EMAIL_IT", "it-support@icmr-nitvar.res.in"),
+    "stationery": os.environ.get("EMAIL_STATIONERY", "stationery@icmr-nitvar.res.in"),
+    "canteen": os.environ.get("EMAIL_CANTEEN", "canteen@icmr-nitvar.res.in"),
+}
+

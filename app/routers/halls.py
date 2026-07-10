@@ -23,7 +23,7 @@ def list_all(db: Session = Depends(get_db), user: User = Depends(require_admin))
 def create(payload: HallIn, request: Request,
            db: Session = Depends(get_db), user: User = Depends(require_admin)):
     with transaction(db):
-        hall = Hall(name=payload.name.strip(), capacity=payload.capacity, image=payload.image)
+        hall = Hall(name=payload.name.strip(), capacity=payload.capacity, image=payload.image, requires_approval=payload.requires_approval)
         db.add(hall)
         db.flush()
         audit.log(db, "hall.create", entity="hall", entity_id=hall.id,
@@ -44,6 +44,8 @@ def update(hall_id: int, payload: HallPatch, request: Request,
             hall.capacity = payload.capacity
         if payload.image is not None:
             hall.image = payload.image
+        if payload.requires_approval is not None:
+            hall.requires_approval = payload.requires_approval
         if payload.active is not None:
             hall.active = payload.active
         audit.log(db, "hall.update", entity="hall", entity_id=hall.id,

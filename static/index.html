@@ -11,6 +11,7 @@
   <div class="topbar">
     <span class="brand"><span class="dot"></span> ICMR-NITVAR Hall Portal</span>
     <span>
+      <a href="#" id="link-modify-booking" class="dashboard-link" style="margin-right: 12px; color: #ea580c;">Modify Booking</a>
       <a href="#" id="link-cancel-booking" class="dashboard-link" style="margin-right: 12px; color: #dc2626;">Cancel Booking</a>
       <a href="/dashboard" class="dashboard-link">IT Dashboard &rarr;</a>
     </span>
@@ -35,11 +36,35 @@
       </div>
       <div class="wizard-step" id="wstep-3">
         <div class="wizard-dot">3</div>
-        <div class="wizard-label">Features</div>
+        <div class="wizard-label">Meeting Details</div>
       </div>
       <div class="wizard-step" id="wstep-4">
         <div class="wizard-dot">4</div>
+        <div class="wizard-label">Features</div>
+      </div>
+      <div class="wizard-step" id="wstep-5">
+        <div class="wizard-dot">5</div>
         <div class="wizard-label">Register</div>
+      </div>
+    </div>
+
+    <!-- Modify Booking Card -->
+    <div class="card hidden" id="step-modify">
+      <h2>Modify Booking</h2>
+      <p class="instructions">Enter your Cancel Code to retrieve and edit your booking details.</p>
+      
+      <div id="modify-error"></div>
+      
+      <div class="row">
+        <div class="field">
+          <label for="m-cancel-code">Cancel Code (6 characters)</label>
+          <input type="text" id="m-cancel-code" placeholder="e.g. ABCDEF" style="text-transform: uppercase;" />
+        </div>
+      </div>
+      
+      <div class="button-group">
+        <button class="ghost" id="btn-modify-back">Back</button>
+        <button id="btn-submit-modify">Load Booking &rarr;</button>
       </div>
     </div>
 
@@ -141,12 +166,83 @@
         <span class="instructions" id="tl-summary" style="font-weight: 600; margin-bottom: 0;">No time selected</span>
         <div class="button-group">
           <button class="ghost" id="btn-back-to-halls">Back</button>
-          <button id="btn-continue-to-features" disabled>Continue &rarr;</button>
+          <button id="btn-continue-to-details" disabled>Continue &rarr;</button>
         </div>
       </div>
     </div>
 
-    <!-- Step 3: Features & Support Staff -->
+    <!-- Step 3: Meeting Details [NEW] -->
+    <div class="card hidden" id="step-details">
+      <h2>Configure Meeting Details</h2>
+      <p class="instructions">Provide attendee estimates, request virtual meeting resources, and specify refreshment options.</p>
+
+      <div class="row">
+        <div class="field">
+          <label for="c-details-attendees">Expected Number of Attendees</label>
+          <input id="c-details-attendees" type="number" min="1" max="500" value="10" />
+        </div>
+      </div>
+
+      <div class="support-staff-card" style="border-left: 3px solid var(--primary); padding-left: 18px; background: var(--bg-subtle); margin-bottom: 20px;">
+        <div class="step-label" style="margin-bottom: 8px; background: var(--bg);">Virtual Meeting Link</div>
+        <label class="checkbox-label">
+          <input type="checkbox" id="c-virtual-meeting" />
+          <div class="checkbox-custom"></div>
+          <div>
+            <strong>Request Zoom/Google Meet Link</strong>
+            <span class="subtext">Automatically generate a video conferencing link for this booking.</span>
+          </div>
+        </label>
+      </div>
+
+      <div class="support-staff-card" style="border-left: 3px solid var(--primary); padding-left: 18px; background: var(--bg-subtle); margin-bottom: 20px;">
+        <div class="step-label" style="margin-bottom: 8px; background: var(--bg);">Food & Refreshments</div>
+        <label class="checkbox-label">
+          <input type="checkbox" id="c-food-requested" />
+          <div class="checkbox-custom"></div>
+          <div>
+            <strong>Request Food / Refreshments</strong>
+            <span class="subtext">Request catering for this meeting. Options will be pre-selected based on meeting timings.</span>
+          </div>
+        </label>
+        
+        <div id="food-options-container" class="hidden" style="margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--border); display: flex; flex-direction: column; gap: 8px;">
+          <label class="checkbox-label" style="font-size: 13px;">
+            <input type="checkbox" id="food-morning-tea" value="Morning Tea" />
+            <div class="checkbox-custom" style="width: 16px; height: 16px;"></div>
+            <span>Morning Tea (09:00 - 11:30)</span>
+          </label>
+          <label class="checkbox-label" style="font-size: 13px;">
+            <input type="checkbox" id="food-lunch" value="Lunch" />
+            <div class="checkbox-custom" style="width: 16px; height: 16px;"></div>
+            <span>Lunch (12:00 - 14:30)</span>
+          </label>
+          <label class="checkbox-label" style="font-size: 13px;">
+            <input type="checkbox" id="food-evening-tea" value="Evening Tea" />
+            <div class="checkbox-custom" style="width: 16px; height: 16px;"></div>
+            <span>Evening Tea (15:00 - 17:30)</span>
+          </label>
+        </div>
+      </div>
+
+      <div style="margin-bottom: 24px; border-top: 1px solid var(--border); padding-top: 16px;">
+        <h3>Stationery Requirements</h3>
+        <p class="instructions" style="margin-bottom: 12px;">Select the stationery items you need. The quantities will automatically match the attendee count.</p>
+        <div id="stationery-list-container" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px;">
+          <!-- Dynamically populated options -->
+        </div>
+      </div>
+
+      <div class="summary-bar">
+        <span class="instructions" id="details-summary-text" style="font-weight: 600; margin-bottom: 0;">No details configured</span>
+        <div class="button-group">
+          <button class="ghost" id="btn-back-to-datetime">Back</button>
+          <button id="btn-continue-to-features">Continue &rarr;</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 4: Features & Support Staff -->
     <div class="card hidden" id="step-features">
       <h2>Configure Hardware & Assistance</h2>
       <p class="instructions">Select the hardware tools you need and request technical stand-by staff.</p>
@@ -173,10 +269,22 @@
         </label>
       </div>
 
+      <div class="support-staff-card" style="border-left: 3px solid var(--primary); padding-left: 18px; background: var(--bg-subtle); margin-top: 16px;">
+        <div class="step-label" style="margin-bottom: 8px; background: var(--bg);">Housekeeping Support Service</div>
+        <label class="checkbox-label">
+          <input type="checkbox" id="c-housekeeping-requested" />
+          <div class="checkbox-custom"></div>
+          <div>
+            <strong>Request Housekeeping Staff Presence</strong>
+            <span class="subtext">A housekeeping assistant will be assigned to be available during your meeting.</span>
+          </div>
+        </label>
+      </div>
+
       <div class="summary-bar">
         <span class="instructions" id="features-summary-text" style="font-weight: 600; margin-bottom: 0;">No special features selected</span>
         <div class="button-group">
-          <button class="ghost" id="btn-back-to-datetime">Back</button>
+          <button class="ghost" id="btn-back-to-details">Back</button>
           <button id="btn-continue-to-info">Continue &rarr;</button>
         </div>
       </div>
@@ -196,15 +304,7 @@
         <div class="field">
           <label for="c-designation">Designation</label>
           <select id="c-designation">
-            <option>Scientist G (Director)</option>
-            <option>Scientist F</option>
-            <option>Scientist E</option>
-            <option>Scientist D</option>
-            <option>Scientist C</option>
-            <option>Scientist B</option>
-            <option>Technical Officer</option>
-            <option>Research Assistant</option>
-            <option>Other Staff</option>
+            <!-- Populated dynamically -->
           </select>
         </div>
       </div>
@@ -213,13 +313,7 @@
         <div class="field">
           <label for="c-dept">Department / Division</label>
           <select id="c-dept">
-            <option>Virology</option>
-            <option>Epidemiology & Public Health</option>
-            <option>Immunology</option>
-            <option>Bioinformatics & Data Science</option>
-            <option>Clinical Research</option>
-            <option>Administration / Accounts</option>
-            <option>Other Division</option>
+            <!-- Populated dynamically -->
           </select>
         </div>
         <div class="field">
@@ -230,12 +324,30 @@
 
       <div class="row">
         <div class="field">
+          <label for="c-coord-name">Coordinator Name</label>
+          <input id="c-coord-name" type="text" placeholder="e.g. Mr. Rajesh Kumar" required />
+        </div>
+        <div class="field">
+          <label for="c-coord-phone">Coordinator Phone</label>
+          <input id="c-coord-phone" type="tel" placeholder="e.g. +91 98765 43210" required />
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="field">
+          <label for="c-coord-email">Coordinator Email</label>
+          <input id="c-coord-email" type="email" placeholder="e.g. rajesh@icmr-nitvar.res.in" required />
+        </div>
+        <div class="field">
           <label for="c-purpose">Purpose of Meeting</label>
           <input id="c-purpose" type="text" placeholder="e.g. Outbreak review meeting" required />
         </div>
+      </div>
+
+      <div class="row">
         <div class="field">
           <label for="c-attendees">Number of Attendees</label>
-          <input id="c-attendees" type="number" min="1" max="500" value="10" />
+          <input id="c-attendees" type="number" min="1" max="500" value="10" disabled />
         </div>
       </div>
 

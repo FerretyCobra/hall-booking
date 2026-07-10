@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from ..config import DAY_START, DAY_END, SLOT_MINUTES
 from ..database import get_db
-from ..models import Hall, HallFeature, Booking, FeatureCatalog, FeatureOption
+from ..models import Hall, HallFeature, Booking, FeatureCatalog, FeatureOption, DropdownConfig
 from ..schemas import BookingIn, CancelIn, BookingUpdateIn
 from ..services import bookings as booking_svc
 
@@ -14,6 +14,12 @@ router = APIRouter(prefix="/api", tags=["public"])
 
 
 def _client_ip(request: Request) -> str | None:
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    real_ip = request.headers.get("x-real-ip")
+    if real_ip:
+        return real_ip.strip()
     return request.client.host if request.client else None
 
 
@@ -40,8 +46,19 @@ def _hall_feature_summary(db: Session, hall_id: int):
 
 
 @router.get("/config")
-def ui_config():
-    return {"day_start": DAY_START, "day_end": DAY_END, "slot_minutes": SLOT_MINUTES}
+def ui_config(db: Session = Depends(get_db)):
+    configs = db.query(DropdownConfig).filter(DropdownConfig.active == True).all()
+    departments = [c.value for c in configs if c.category == "department"]
+    designations = [c.value for c in configs if c.category == "designation"]
+    stationery = [c.value for c in configs if c.category == "stationery"]
+    return {
+        "day_start": DAY_START,
+        "day_end": DAY_END,
+        "slot_minutes": SLOT_MINUTES,
+        "departments": departments,
+        "designations": designations,
+        "stationery": stationery
+    }
 
 
 @router.get("/halls")
@@ -71,6 +88,7 @@ def list_halls(
 
     return [
         {"id": h.id, "name": h.name, "capacity": h.capacity, "image": h.image,
+         "requires_approval": h.requires_approval,
          "features": _hall_feature_summary(db, h.id)}
         for h in halls
     ]
@@ -122,17 +140,25 @@ def book(payload: BookingIn, request: Request, db: Session = Depends(get_db)):
             "start": b.start_time, "end": b.end_time,
             "booked_by": b.booked_by, "dept": b.dept,
             "support_staff_requested": b.support_staff_requested,
+            "housekeeping_requested": b.housekeeping_requested,
             "scientist_designation": b.scientist_designation,
             "project_id": b.project_id,
             "attendees_count": b.attendees_count,
-            "features_requested": b.features_requested}
+            "features_requested": b.features_requested,
+            "status": b.status,
+            "coordinator_name": b.coordinator_name,
+            "coordinator_phone": b.coordinator_phone,
+            "virtual_meeting_requested": b.virtual_meeting_requested,
+            "meeting_link": b.meeting_link,
+            "stationery_requested": b.stationery_requested,
+            "food_requested": b.food_requested}
 
 
 @router.post("/bookings/by-code/cancel")
 def cancel(payload: CancelIn, request: Request,
            db: Session = Depends(get_db)):
     booking = db.query(Booking).filter(Booking.cancel_code == payload.cancel_code.strip().upper()).first()
-    if not booking or booking.status != "confirmed":
+    if not booking or booking.status not in ("confirmed", "pending_approval"):
         raise HTTPException(404, "Booking not found or already cancelled.")
     try:
         booking_svc.cancel_booking(db, booking.id, payload.cancel_code, _client_ip(request))
@@ -156,11 +182,18 @@ def get_booking(cancel_code: str, db: Session = Depends(get_db)):
         "dept": booking.dept,
         "purpose": booking.purpose,
         "support_staff_requested": booking.support_staff_requested,
+        "housekeeping_requested": booking.housekeeping_requested,
         "scientist_designation": booking.scientist_designation,
         "project_id": booking.project_id,
         "attendees_count": booking.attendees_count,
         "features_requested": booking.features_requested,
-        "status": booking.status
+        "status": booking.status,
+        "coordinator_name": booking.coordinator_name,
+        "coordinator_phone": booking.coordinator_phone,
+        "virtual_meeting_requested": booking.virtual_meeting_requested,
+        "meeting_link": booking.meeting_link,
+        "stationery_requested": booking.stationery_requested,
+        "food_requested": booking.food_requested
     }
 
 
@@ -184,7 +217,114 @@ def update(payload: BookingUpdateIn, request: Request,
             "start": b.start_time, "end": b.end_time,
             "booked_by": b.booked_by, "dept": b.dept,
             "support_staff_requested": b.support_staff_requested,
+            "housekeeping_requested": b.housekeeping_requested,
             "scientist_designation": b.scientist_designation,
             "project_id": b.project_id,
             "attendees_count": b.attendees_count,
-            "features_requested": b.features_requested}
+            "features_requested": b.features_requested,
+            "status": b.status,
+            "coordinator_name": b.coordinator_name,
+            "coordinator_phone": b.coordinator_phone,
+            "virtual_meeting_requested": b.virtual_meeting_requested,
+            "meeting_link": b.meeting_link,
+            "stationery_requested": b.stationery_requested,
+            "food_requested": b.food_requested}
+
+
+from fastapi.responses import HTMLResponse
+from ..services.meetings import get_active_meeting_provider
+from ..services.notifications import send_booking_confirmation, send_booking_rejection
+
+@router.get("/bookings/approve-by-token", response_class=HTMLResponse)
+def approve_by_token_page(token: str, db: Session = Depends(get_db)):
+    booking = db.query(Booking).filter(Booking.approval_token == token).first()
+    if not booking:
+        return HTMLResponse("<h2>Error: Invalid or expired approval token.</h2>", status_code=404)
+    if booking.status != "pending_approval":
+        return HTMLResponse(f"<h2>Notice: Booking is already in '{booking.status}' status.</h2>")
+    hall = db.get(Hall, booking.hall_id)
+    return HTMLResponse(f"""
+    <div style="font-family: sans-serif; text-align: center; margin-top: 100px; max-width: 500px; margin-left: auto; margin-right: auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); background: #ffffff;">
+        <h2 style="color: #0f172a; margin-top: 0; margin-bottom: 12px; font-size: 20px;">Confirm Booking Approval</h2>
+        <p style="color: #475569; font-size: 15px; line-height: 1.5; margin-bottom: 24px;">Are you sure you want to approve the booking for <strong>{hall.name}</strong> on {booking.booking_date.isoformat()} ({booking.start_time} - {booking.end_time})?</p>
+        <form method="POST" action="/api/bookings/approve-by-token?token={token}">
+            <button type="submit" style="background-color: #22c55e; color: white; padding: 10px 24px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 14px;">Yes, Approve Booking</button>
+            <a href="/" style="display: inline-block; margin-left: 12px; color: #64748b; text-decoration: none; padding: 10px 20px; font-size: 14px; font-weight: 500;">Cancel</a>
+        </form>
+    </div>
+    """)
+
+@router.post("/bookings/approve-by-token", response_class=HTMLResponse)
+def approve_by_token(token: str, db: Session = Depends(get_db)):
+    booking = db.query(Booking).filter(Booking.approval_token == token).first()
+    if not booking:
+        return HTMLResponse("<h2>Error: Invalid or expired approval token.</h2>", status_code=404)
+    if booking.status != "pending_approval":
+        return HTMLResponse(f"<h2>Notice: Booking is already in '{booking.status}' status.</h2>")
+
+    hall = db.get(Hall, booking.hall_id)
+    booking.status = "confirmed"
+    
+    # Generate meeting link if requested
+    if booking.virtual_meeting_requested and not booking.meeting_link:
+        provider = get_active_meeting_provider()
+        booking.meeting_link = provider.create_meeting(booking.id, booking.purpose or "Meeting")
+
+    db.commit()
+    
+    try:
+        send_booking_confirmation(db, booking, hall)
+    except Exception as e:
+        print(f"Error sending booking confirmation email: {e}")
+
+    return HTMLResponse("""
+    <div style="font-family: sans-serif; text-align: center; margin-top: 100px;">
+        <h2 style="color: #22c55e;">✔ Booking Approved Successfully</h2>
+        <p>The reservation has been confirmed and a confirmation email has been sent to the coordinator.</p>
+        <p><a href="/" style="color: #0284c7; text-decoration: none; font-weight: bold;">Return to Portal</a></p>
+    </div>
+    """)
+
+@router.get("/bookings/reject-by-token", response_class=HTMLResponse)
+def reject_by_token_page(token: str, db: Session = Depends(get_db)):
+    booking = db.query(Booking).filter(Booking.approval_token == token).first()
+    if not booking:
+        return HTMLResponse("<h2>Error: Invalid or expired approval token.</h2>", status_code=404)
+    if booking.status != "pending_approval":
+        return HTMLResponse(f"<h2>Notice: Booking is already in '{booking.status}' status.</h2>")
+    hall = db.get(Hall, booking.hall_id)
+    return HTMLResponse(f"""
+    <div style="font-family: sans-serif; text-align: center; margin-top: 100px; max-width: 500px; margin-left: auto; margin-right: auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); background: #ffffff;">
+        <h2 style="color: #0f172a; margin-top: 0; margin-bottom: 12px; font-size: 20px;">Confirm Booking Rejection</h2>
+        <p style="color: #475569; font-size: 15px; line-height: 1.5; margin-bottom: 24px;">Are you sure you want to decline the booking for <strong>{hall.name}</strong> on {booking.booking_date.isoformat()} ({booking.start_time} - {booking.end_time})?</p>
+        <form method="POST" action="/api/bookings/reject-by-token?token={token}">
+            <button type="submit" style="background-color: #dc2626; color: white; padding: 10px 24px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 14px;">Yes, Decline Booking</button>
+            <a href="/" style="display: inline-block; margin-left: 12px; color: #64748b; text-decoration: none; padding: 10px 20px; font-size: 14px; font-weight: 500;">Cancel</a>
+        </form>
+    </div>
+    """)
+
+@router.post("/bookings/reject-by-token", response_class=HTMLResponse)
+def reject_by_token(token: str, db: Session = Depends(get_db)):
+    booking = db.query(Booking).filter(Booking.approval_token == token).first()
+    if not booking:
+        return HTMLResponse("<h2>Error: Invalid or expired approval token.</h2>", status_code=404)
+    if booking.status != "pending_approval":
+        return HTMLResponse(f"<h2>Notice: Booking is already in '{booking.status}' status.</h2>")
+
+    hall = db.get(Hall, booking.hall_id)
+    booking.status = "cancelled"
+    db.commit()
+
+    try:
+        send_booking_rejection(db, booking, hall)
+    except Exception as e:
+        print(f"Error sending booking rejection email: {e}")
+
+    return HTMLResponse("""
+    <div style="font-family: sans-serif; text-align: center; margin-top: 100px;">
+        <h2 style="color: #dc2626;">✖ Booking Request Declined</h2>
+        <p>The reservation request has been rejected and the coordinator has been notified.</p>
+        <p><a href="/" style="color: #0284c7; text-decoration: none; font-weight: bold;">Return to Portal</a></p>
+    </div>
+    """)

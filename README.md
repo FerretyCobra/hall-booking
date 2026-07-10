@@ -8,6 +8,16 @@ Stack: **FastAPI + SQLite**, plain HTML/CSS/JS front-ends (no build step).
 
 ---
 
+## 📚 Documentation
+
+| Document | Description |
+|----------|-------------|
+| [IT_SETUP_GUIDE.md](docs/IT_SETUP_GUIDE.md) | **Start here** — Step-by-step IT setup guide for intranet/local deployment |
+| [DOCUMENTATION.md](docs/DOCUMENTATION.md) | Comprehensive technical documentation — architecture, API reference, database schema, services, deployment guide |
+| [SOP.md](docs/SOP.md) | Standard Operating Procedures for bookers, directors, and IT administrators |
+
+---
+
 ## Quick start
 
 ```bash

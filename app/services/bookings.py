@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from ..database import transaction
 from ..models import Booking, Hall
 from . import audit
+from .meetings import get_active_meeting_provider
 
 _CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"  # no ambiguous chars
 
@@ -30,6 +31,8 @@ def _valid_time(t: str) -> bool:
 def _new_code() -> str:
     return "".join(secrets.choice(_CODE_ALPHABET) for _ in range(6))
 
+
+import secrets
 
 def find_conflict(db: Session, hall_id: int, booking_date, start: str, end: str, exclude_id: int | None = None):
     """Return a confirmed booking that overlaps [start, end) on this hall/date,
@@ -72,6 +75,9 @@ def create_booking(db: Session, data, ip: str | None) -> Booking:
                 conflict=clash,
             )
 
+        status = "pending_approval" if hall.requires_approval else "confirmed"
+        token = secrets.token_urlsafe(16) if status == "pending_approval" else None
+
         booking = Booking(
             hall_id=data.hall_id,
             booking_date=data.booking_date,
@@ -80,27 +86,56 @@ def create_booking(db: Session, data, ip: str | None) -> Booking:
             booked_by=data.booked_by.strip(),
             dept=data.dept,
             purpose=data.purpose,
-            status="confirmed",
+            status=status,
             cancel_code=_new_code(),
             created_ip=ip,
             support_staff_requested=data.support_staff_requested,
+            housekeeping_requested=data.housekeeping_requested,
             scientist_designation=data.scientist_designation,
             project_id=data.project_id,
             attendees_count=data.attendees_count,
             features_requested=data.features_requested,
+            coordinator_name=data.coordinator_name,
+            coordinator_phone=data.coordinator_phone,
+            coordinator_email=data.coordinator_email,
+            approval_token=token,
+            virtual_meeting_requested=data.virtual_meeting_requested,
+            stationery_requested=data.stationery_requested,
+            food_requested=data.food_requested,
         )
         db.add(booking)
         db.flush()
+
+        # If confirmed and virtual meeting requested, generate link
+        if booking.status == "confirmed" and booking.virtual_meeting_requested:
+            provider = get_active_meeting_provider()
+            booking.meeting_link = provider.create_meeting(booking.id, booking.purpose or "Meeting")
+
         audit.log(db, "booking.create", entity="booking", entity_id=booking.id,
                   actor=booking.booked_by, actor_ip=ip,
-                  detail=f"{hall.name} {data.booking_date} {data.start_time}-{data.end_time}")
+                  detail=f"{hall.name} {data.booking_date} {data.start_time}-{data.end_time} (status: {status})")
+
+    # Send notifications outside of the transaction block so the database state is committed
+    if booking.status == "confirmed":
+        from .notifications import send_booking_confirmation
+        try:
+            send_booking_confirmation(db, booking, hall)
+        except Exception as e:
+            print(f"Error sending booking confirmation: {e}")
+    elif booking.status == "pending_approval":
+        from .notifications import send_director_approval_request
+        try:
+            send_director_approval_request(db, booking, hall)
+        except Exception as e:
+            print(f"Error sending director approval request: {e}")
+
     return booking
 
 
 def cancel_booking(db: Session, booking_id: int, code: str, ip: str | None) -> Booking:
     with transaction(db):
         booking = db.get(Booking, booking_id)
-        if not booking or booking.status != "confirmed":
+        if not booking or booking.status not in ("confirmed", "pending_approval"):
             raise BookingError("Booking not found or already cancelled.")
         if booking.cancel_code.upper() != (code or "").strip().upper():
             raise BookingError("That cancel code doesn't match.")
@@ -120,7 +155,7 @@ def update_booking(db: Session, booking_id: int, cancel_code: str, data, ip: str
 
     with transaction(db):
         booking = db.get(Booking, booking_id)
-        if not booking or booking.status != "confirmed":
+        if not booking or booking.status not in ("confirmed", "pending_approval"):
             raise BookingError("Booking not found or already cancelled.")
         if booking.cancel_code.upper() != (cancel_code or "").strip().upper():
             raise BookingError("That cancel code doesn't match.")
@@ -146,10 +181,23 @@ def update_booking(db: Session, booking_id: int, cancel_code: str, data, ip: str
         booking.dept = data.dept
         booking.purpose = data.purpose
         booking.support_staff_requested = data.support_staff_requested
+        booking.housekeeping_requested = data.housekeeping_requested
         booking.scientist_designation = data.scientist_designation
         booking.project_id = data.project_id
         booking.attendees_count = data.attendees_count
         booking.features_requested = data.features_requested
+        booking.coordinator_name = data.coordinator_name
+        booking.coordinator_phone = data.coordinator_phone
+        booking.virtual_meeting_requested = data.virtual_meeting_requested
+        booking.stationery_requested = data.stationery_requested
+        booking.food_requested = data.food_requested
+
+        # Update meeting link if status changed or requested now
+        if booking.status == "confirmed" and booking.virtual_meeting_requested and not booking.meeting_link:
+            provider = get_active_meeting_provider()
+            booking.meeting_link = provider.create_meeting(booking.id, booking.purpose or "Meeting")
+        elif not booking.virtual_meeting_requested:
+            booking.meeting_link = None
 
         db.flush()
         audit.log(db, "booking.update", entity="booking", entity_id=booking.id,

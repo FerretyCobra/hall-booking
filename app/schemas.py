@@ -21,12 +21,14 @@ class HallIn(BaseModel):
     name: str
     capacity: int = 0
     image: Optional[str] = None
+    requires_approval: bool = False
 
 
 class HallPatch(BaseModel):
     name: Optional[str] = None
     capacity: Optional[int] = None
     image: Optional[str] = None
+    requires_approval: Optional[bool] = None
     active: Optional[bool] = None
 
 
@@ -35,6 +37,7 @@ class HallOut(BaseModel):
     name: str
     capacity: int
     image: Optional[str] = None
+    requires_approval: bool
     active: bool
 
     class Config:
@@ -86,6 +89,13 @@ class BookingIn(BaseModel):
     project_id: Optional[str] = None
     attendees_count: Optional[int] = None
     features_requested: Optional[str] = None
+    coordinator_name: Optional[str] = None
+    coordinator_phone: Optional[str] = None
+    coordinator_email: Optional[str] = None
+    virtual_meeting_requested: bool = False
+    stationery_requested: Optional[str] = None
+    food_requested: Optional[str] = None
+    housekeeping_requested: bool = False
 
 
 class BookingUpdateIn(BaseModel):
@@ -101,6 +111,13 @@ class BookingUpdateIn(BaseModel):
     project_id: Optional[str] = None
     attendees_count: Optional[int] = None
     features_requested: Optional[str] = None
+    coordinator_name: Optional[str] = None
+    coordinator_phone: Optional[str] = None
+    coordinator_email: Optional[str] = None
+    virtual_meeting_requested: bool = False
+    stationery_requested: Optional[str] = None
+    food_requested: Optional[str] = None
+    housekeeping_requested: bool = False
 
 
 class CancelIn(BaseModel):
@@ -118,10 +135,34 @@ class BookingOut(BaseModel):
     purpose: Optional[str] = None
     status: str
     support_staff_requested: bool
+    housekeeping_requested: bool
     scientist_designation: Optional[str] = None
     project_id: Optional[str] = None
     attendees_count: Optional[int] = None
     features_requested: Optional[str] = None
+    coordinator_name: Optional[str] = None
+    coordinator_phone: Optional[str] = None
+    coordinator_email: Optional[str] = None
+    virtual_meeting_requested: bool
+    meeting_link: Optional[str] = None
+    stationery_requested: Optional[str] = None
+    food_requested: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+# ---- dropdown config ----
+class DropdownConfigIn(BaseModel):
+    category: str
+    value: str
+
+
+class DropdownConfigOut(BaseModel):
+    id: int
+    category: str
+    value: str
+    active: bool
 
     class Config:
         from_attributes = True

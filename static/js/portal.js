@@ -49,7 +49,7 @@ function hide(id) { $(id).classList.add("hidden"); }
 
 // Wizard progress visual manager
 function setWizardStep(activeStep) {
-  for (let i = 1; i <= 4; i++) {
+  for (let i = 1; i <= 5; i++) {
     const el = $(`wstep-${i}`);
     if (!el) continue;
     if (i < activeStep) {
@@ -79,6 +79,32 @@ async function init() {
       day_end: config.day_end || "18:00",
       slot_minutes: config.slot_minutes || 30
     };
+    
+    // Dynamic Dropdown Seeding
+    if (config.departments) {
+      const deptEl = $("c-dept");
+      deptEl.innerHTML = "";
+      config.departments.forEach(d => {
+        const opt = document.createElement("option");
+        opt.value = d;
+        opt.textContent = d;
+        deptEl.appendChild(opt);
+      });
+    }
+    if (config.designations) {
+      const desigEl = $("c-designation");
+      desigEl.innerHTML = "";
+      config.designations.forEach(d => {
+        const opt = document.createElement("option");
+        opt.value = d;
+        opt.textContent = d;
+        desigEl.appendChild(opt);
+      });
+    }
+    if (config.stationery) {
+      state.stationeryList = config.stationery;
+      renderStationeryOptions();
+    }
   } catch (e) {
     console.error("Error loading config", e);
   }
@@ -100,6 +126,8 @@ async function init() {
   setWizardStep(1);
   setupSearchFilters(); // setup UI filters for halls
   setupBookingCancellationUI(); // setup UI elements for cancellation
+  setupBookingModificationUI(); // setup UI elements for modification
+  setupStepDetailsUI(); // Setup the new Meeting Details wizard step listeners
 }
 
 // Fetch halls from backend
@@ -420,7 +448,8 @@ function validateAndSetCustomTimes() {
 }
 
 function updateDateTimeSummary() {
-  const btn = $("btn-continue-to-features");
+  const btn = $("btn-continue-to-details");
+  if (!btn) return;
   
   if (state.isCustomTimeMode) {
     validateAndSetCustomTimes();
@@ -448,15 +477,17 @@ function updateDateTimeSummary() {
 }
 
 // Step 2 -> Step 3
-$("btn-continue-to-features").onclick = () => {
+$("btn-continue-to-details").onclick = () => {
   if (!state.selectedEndSlot) return;
   
-  // Render features
-  renderFeaturesSection();
-  
   hide("step-datetime");
-  show("step-features");
+  show("step-details");
   setWizardStep(3);
+  
+  // Refresh attendee count sync & stationery labels
+  const attCount = parseInt($("c-details-attendees").value, 10) || 10;
+  updateStationeryLabels(attCount);
+  autoSelectFoodBasedOnTime();
 };
 
 $("btn-back-to-halls").onclick = () => {
@@ -525,18 +556,30 @@ $("btn-select-all-feats").onclick = () => {
   updateFeaturesSummary();
 };
 
-// Step 3 -> Step 4
+// Step 4 (Features) -> Step 5 (Confirm)
 $("btn-continue-to-info").onclick = () => {
   const start = state.selectedStartSlot;
   const end = state.selectedEndSlot;
   const support = $("c-support-staff").checked ? "Yes" : "No";
+  const housekeeping = $("c-housekeeping-requested").checked ? "Yes" : "No";
   const feats = getSelectedFeatures().join(", ") || "None";
+  const stationeryText = getSelectedStationery() || "None";
+  const foodText = getSelectedFood() || "None";
+  const attendeesCount = parseInt($("c-details-attendees").value, 10) || 10;
+  
+  // Sync attendee amount to the confirmation page disabled field
+  $("c-attendees").value = attendeesCount;
   
   $("confirm-summary").innerHTML = `
     <p><strong>Hall Name:</strong> ${state.selectedHall.name}</p>
     <p><strong>Booking Date:</strong> ${state.date}</p>
     <p><strong>Scheduled Time:</strong> ${fmtDisplayTime(start)} – ${fmtDisplayTime(end)} (${getDurationText(start, end)})</p>
+    <p><strong>Attendees:</strong> ${attendeesCount}</p>
+    <p><strong>Virtual Meeting:</strong> ${$("c-virtual-meeting").checked ? "Yes" : "No"}</p>
+    <p><strong>Stationery:</strong> ${stationeryText}</p>
+    <p><strong>Catering/Refreshments:</strong> ${foodText}</p>
     <p><strong>Technical Staff requested:</strong> ${support}</p>
+    <p><strong>Housekeeping Staff requested:</strong> ${housekeeping}</p>
     <p><strong>Linked Amenities:</strong> ${feats}</p>
   `;
   
@@ -544,11 +587,11 @@ $("btn-continue-to-info").onclick = () => {
   
   hide("step-features");
   show("step-confirm");
-  setWizardStep(4);
+  setWizardStep(5);
 };
 
 $("btn-back-to-datetime").onclick = () => {
-  hide("step-features");
+  hide("step-details");
   show("step-datetime");
   setWizardStep(2);
 };
@@ -556,15 +599,46 @@ $("btn-back-to-datetime").onclick = () => {
 $("btn-back-to-features").onclick = () => {
   hide("step-confirm");
   show("step-features");
+  setWizardStep(4);
+};
+
+// Step 4 (Features) Back button
+$("btn-back-to-details").onclick = () => {
+  hide("step-features");
+  show("step-details");
   setWizardStep(3);
 };
 
-// Step 4: Register Booking Submit
+// Step 3 (Details) Continue button
+$("btn-continue-to-features").onclick = () => {
+  renderFeaturesSection();
+  
+  hide("step-details");
+  show("step-features");
+  setWizardStep(4);
+};
+
+// Step 5: Register Booking Submit
 $("btn-book").onclick = async () => {
   const name = $("c-name").value.trim();
   const purpose = $("c-purpose").value.trim();
+  const coordName = $("c-coord-name").value.trim();
+  const coordPhone = $("c-coord-phone").value.trim();
+  const coordEmail = $("c-coord-email").value.trim();
   
   if (!name) { $("c-name").focus(); return; }
+  if (!coordName) { $("c-coord-name").focus(); return; }
+  if (!coordPhone) { $("c-coord-phone").focus(); return; }
+  if (!coordEmail) { $("c-coord-email").focus(); return; }
+  
+  // Quick email format regex validation
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(coordEmail)) {
+    alert("Please enter a valid email address for the coordinator.");
+    $("c-coord-email").focus();
+    return;
+  }
+  
   if (!purpose) { $("c-purpose").focus(); return; }
   
   const payload = {
@@ -576,24 +650,77 @@ $("btn-book").onclick = async () => {
     dept: $("c-dept").value,
     purpose: purpose,
     support_staff_requested: $("c-support-staff").checked,
+    housekeeping_requested: $("c-housekeeping-requested").checked,
     scientist_designation: $("c-designation").value,
     project_id: $("c-project-id").value.trim() || null,
-    attendees_count: parseInt($("c-attendees").value) || 1,
-    features_requested: getSelectedFeatures().join(", ") || null
+    attendees_count: parseInt($("c-details-attendees").value, 10) || 10,
+    features_requested: getSelectedFeatures().join(", ") || null,
+    coordinator_name: coordName,
+    coordinator_phone: coordPhone,
+    coordinator_email: coordEmail,
+    virtual_meeting_requested: $("c-virtual-meeting").checked,
+    stationery_requested: getSelectedStationery() || null,
+    food_requested: getSelectedFood() || null
   };
   
   try {
-    const res = await api("/api/bookings", { method: "POST", body: JSON.stringify(payload) });
+    let res;
+    if (state.isUpdating) {
+      payload.cancel_code = state.updateCancelCode;
+      res = await api("/api/bookings/by-code/update", { method: "POST", body: JSON.stringify(payload) });
+    } else {
+      res = await api("/api/bookings", { method: "POST", body: JSON.stringify(payload) });
+    }
+    
+    // Status display message
+    let statusMsg = "";
+    if (res.status === "pending_approval") {
+      statusMsg = `
+        <div style="background: #fff7ed; border: 1px solid #ffedd5; color: #c2410c; padding: 12px; border-radius: 8px; margin-bottom: 16px; font-weight: 500; text-align: center;">
+          📋 Awaiting Director's Approval. You will receive an email once decided.
+        </div>
+      `;
+    } else {
+      statusMsg = `
+        <div style="background: #f0fdf4; border: 1px solid #dcfce7; color: #16a34a; padding: 12px; border-radius: 8px; margin-bottom: 16px; font-weight: 500; text-align: center;">
+          ✔ Booking ${state.isUpdating ? 'Updated' : 'Confirmed'}. A confirmation email has been sent.
+        </div>
+      `;
+    }
+    
+    let meetingLinkHtml = "";
+    if (payload.virtual_meeting_requested) {
+      if (res.meeting_link) {
+        meetingLinkHtml = `<p><strong>Virtual Meeting Link:</strong> <a href="${res.meeting_link}" target="_blank" style="color: var(--primary); font-weight: 600; text-decoration: underline;">Join Meeting</a></p>`;
+      } else {
+        meetingLinkHtml = `<p><strong>Virtual Meeting Link:</strong> <span style="color: var(--text-muted); font-style: italic;">Will be generated upon Director approval</span></p>`;
+      }
+    }
+    
+    let stationeryHtml = "";
+    if (res.stationery_requested) {
+      stationeryHtml = `<p><strong>Stationery:</strong> ${res.stationery_requested}</p>`;
+    }
+    let foodHtml = "";
+    if (res.food_requested) {
+      foodHtml = `<p><strong>Catering/Refreshments:</strong> ${res.food_requested}</p>`;
+    }
     
     // Render Done Details Box
     $("done-details").innerHTML = `
+      ${statusMsg}
       <p><strong>Hall:</strong> ${state.selectedHall.name}</p>
       <p><strong>Date:</strong> ${state.date}</p>
       <p><strong>Time:</strong> ${fmtDisplayTime(payload.start_time)} – ${fmtDisplayTime(payload.end_time)}</p>
       <p><strong>Staff Scientist:</strong> ${payload.scientist_designation} ${payload.booked_by}</p>
+      <p><strong>Coordinator:</strong> ${payload.coordinator_name} (${payload.coordinator_phone}, ${payload.coordinator_email})</p>
       <p><strong>Division:</strong> ${payload.dept}</p>
       <p><strong>Project ID:</strong> ${payload.project_id || "N/A"}</p>
       <p><strong>IT Stand-by Support:</strong> ${payload.support_staff_requested ? "Requested" : "None"}</p>
+      <p><strong>Housekeeping Staff Support:</strong> ${payload.housekeeping_requested ? "Requested" : "None"}</p>
+      ${stationeryHtml}
+      ${foodHtml}
+      ${meetingLinkHtml}
     `;
     
     $("done-code").textContent = res.cancel_code;
@@ -720,6 +847,287 @@ function setupBookingCancellationUI() {
       $("cancel-error").innerHTML = `<div class="error-msg">${msg}</div>`;
     }
   };
+}
+
+// Modify Booking UI
+function setupBookingModificationUI() {
+  $("link-modify-booking").onclick = (e) => {
+    e.preventDefault();
+    hide("step-halls");
+    show("step-modify");
+    $("modify-error").innerHTML = "";
+    $("m-cancel-code").value = "";
+  };
+  
+  $("btn-modify-back").onclick = () => {
+    hide("step-modify");
+    show("step-halls");
+  };
+  
+  $("btn-submit-modify").onclick = async () => {
+    const cancelCode = $("m-cancel-code").value.trim().toUpperCase();
+    
+    if (!cancelCode) {
+      $("modify-error").innerHTML = `<div class="error-msg">Please enter your Cancel Code.</div>`;
+      return;
+    }
+    
+    try {
+      const booking = await api("/api/bookings/by-code?cancel_code=" + cancelCode);
+      
+      // Load booking details into state
+      state.isUpdating = true;
+      state.updateCancelCode = cancelCode;
+      
+      const hall = allHalls.find(h => h.id === booking.hall_id);
+      if (!hall) {
+        throw new Error("Associated hall not found or archived.");
+      }
+      
+      state.selectedHall = hall;
+      state.date = booking.booking_date;
+      state.selectedStartSlot = booking.start_time;
+      state.selectedEndSlot = booking.end_time;
+      
+      // Fill UI fields
+      $("c-details-attendees").value = booking.attendees_count || 10;
+      $("c-virtual-meeting").checked = !!booking.virtual_meeting_requested;
+      
+      // Parse food
+      $("c-food-requested").checked = !!booking.food_requested;
+      const foodContainer = document.getElementById("food-options-container");
+      if (booking.food_requested) {
+        foodContainer.classList.remove("hidden");
+        const list = booking.food_requested.split(", ");
+        $("food-morning-tea").checked = list.includes("Morning Tea");
+        $("food-lunch").checked = list.includes("Lunch");
+        $("food-evening-tea").checked = list.includes("Evening Tea");
+      } else {
+        foodContainer.classList.add("hidden");
+        $("food-morning-tea").checked = false;
+        $("food-lunch").checked = false;
+        $("food-evening-tea").checked = false;
+      }
+      
+      // Parse stationery
+      document.querySelectorAll(".stationery-opt-cb").forEach(cb => cb.checked = false);
+      document.querySelectorAll(".qty-container").forEach(div => div.classList.add("hidden"));
+      if (booking.stationery_requested) {
+        const items = booking.stationery_requested.split(", ");
+        items.forEach(item => {
+          const lastIdx = item.lastIndexOf(" x");
+          if (lastIdx !== -1) {
+            const name = item.substring(0, lastIdx);
+            const qty = item.substring(lastIdx + 2);
+            document.querySelectorAll(".stationery-opt-cb").forEach(cb => {
+              if (cb.value === name) {
+                cb.checked = true;
+                const idx = cb.getAttribute("data-idx");
+                const qtyInput = document.getElementById("st-qty-" + idx);
+                if (qtyInput) qtyInput.value = qty;
+                const wrapper = document.getElementById("qty-wrapper-" + idx);
+                if (wrapper) wrapper.classList.remove("hidden");
+              }
+            });
+          }
+        });
+      }
+      
+      // Technical + Housekeeping
+      $("c-support-staff").checked = !!booking.support_staff_requested;
+      $("c-housekeeping-requested").checked = !!booking.housekeeping_requested;
+      
+      // Info step
+      $("c-name").value = booking.booked_by || "";
+      $("c-designation").value = booking.scientist_designation || "";
+      $("c-dept").value = booking.dept || "";
+      $("c-project-id").value = booking.project_id || "";
+      $("c-coord-name").value = booking.coordinator_name || "";
+      $("c-coord-phone").value = booking.coordinator_phone || "";
+      $("c-coord-email").value = booking.coordinator_email || "";
+      $("c-purpose").value = booking.purpose || "";
+      $("c-attendees").value = booking.attendees_count || 10;
+      
+      // Update details summary text
+      updateDetailsSummary();
+      
+      // Transition to date & time step
+      hide("step-modify");
+      show("step-datetime");
+      setWizardStep(2);
+      
+      $("selected-hall-name").textContent = `Modify booking: ${hall.name}`;
+      renderDatePicker();
+      await fetchAvailability();
+      
+    } catch (e) {
+      console.error(e);
+      const msg = typeof e === "string" ? e : (e.message || "Failed to load booking. Please check your Cancel Code.");
+      $("modify-error").innerHTML = `<div class="error-msg">${msg}</div>`;
+    }
+  };
+}
+
+// ---------- Step 3 (Meeting Details) Helpers & Setup ----------
+
+function renderStationeryOptions() {
+  const container = $("stationery-list-container");
+  if (!container) return;
+  container.innerHTML = "";
+  
+  if (!state.stationeryList || !state.stationeryList.length) {
+    container.innerHTML = '<p class="muted">No stationery configurations set.</p>';
+    return;
+  }
+  
+  const attendeeCount = parseInt($("c-details-attendees").value, 10) || 10;
+  
+  state.stationeryList.forEach((item, idx) => {
+    const itemEsc = item.replace(/"/g, '&quot;');
+    container.innerHTML += `
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; border: 1px solid var(--border); padding: 8px 12px; border-radius: 6px; background: var(--bg-subtle);">
+        <label class="checkbox-label" style="font-size: 13.5px; margin: 0; flex-grow: 1;">
+          <input type="checkbox" class="stationery-opt-cb" value="${itemEsc}" id="st-opt-${idx}" data-idx="${idx}" />
+          <div class="checkbox-custom"></div>
+          <strong>${item}</strong>
+        </label>
+        <div class="qty-container hidden" id="qty-wrapper-${idx}" style="display: flex; align-items: center; gap: 6px;">
+          <span style="font-size: 12px; color: var(--text-muted);">Qty:</span>
+          <input type="number" class="stationery-qty-input" id="st-qty-${idx}" min="1" max="1000" value="${attendeeCount}" style="width: 60px; padding: 4px; border: 1px solid var(--border); border-radius: 4px; text-align: center;" />
+        </div>
+      </div>
+    `;
+  });
+  
+  // Re-attach change listeners to toggle quantity input and update summary
+  document.querySelectorAll(".stationery-opt-cb").forEach(cb => {
+    cb.onchange = (e) => {
+      const idx = e.target.getAttribute("data-idx");
+      const qtyWrapper = $(`qty-wrapper-${idx}`);
+      if (qtyWrapper) {
+        if (e.target.checked) {
+          qtyWrapper.classList.remove("hidden");
+        } else {
+          qtyWrapper.classList.add("hidden");
+        }
+      }
+      updateDetailsSummary();
+    };
+  });
+
+  document.querySelectorAll(".stationery-qty-input").forEach(input => {
+    input.oninput = updateDetailsSummary;
+  });
+}
+
+function updateStationeryLabels(count) {
+  document.querySelectorAll(".stationery-qty-input").forEach(input => {
+    input.value = count;
+  });
+  updateDetailsSummary();
+}
+
+function autoSelectFoodBasedOnTime() {
+  const start = state.selectedStartSlot;
+  const end = state.selectedEndSlot;
+  if (!start || !end) return;
+
+  const toMin = (t) => {
+    const parts = t.split(":");
+    return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+  };
+
+  const sMin = toMin(start);
+  const eMin = toMin(end);
+
+  // Overlaps:
+  // Morning Tea: 09:00 - 11:30 (540 - 690)
+  const overlapsMorning = (sMin < 690 && eMin > 540);
+  // Lunch: 12:00 - 14:30 (720 - 870)
+  const overlapsLunch = (sMin < 870 && eMin > 720);
+  // Evening Tea: 15:00 - 17:30 (900 - 1050)
+  const overlapsEvening = (sMin < 1050 && eMin > 900);
+
+  $("food-morning-tea").checked = overlapsMorning;
+  $("food-lunch").checked = overlapsLunch;
+  $("food-evening-tea").checked = overlapsEvening;
+  
+  updateDetailsSummary();
+}
+
+function getSelectedStationery() {
+  const selected = [];
+  document.querySelectorAll(".stationery-opt-cb:checked").forEach(cb => {
+    const idx = cb.getAttribute("data-idx");
+    const qtyInput = $(`st-qty-${idx}`);
+    const qty = parseInt(qtyInput.value, 10) || 1;
+    selected.push(`${cb.value} x${qty}`);
+  });
+  return selected.join(", ");
+}
+
+function getSelectedFood() {
+  if (!$("c-food-requested").checked) return null;
+  const selected = [];
+  if ($("food-morning-tea").checked) selected.push("Morning Tea");
+  if ($("food-lunch").checked) selected.push("Lunch");
+  if ($("food-evening-tea").checked) selected.push("Evening Tea");
+  return selected.join(", ") || null;
+}
+
+function updateDetailsSummary() {
+  const count = parseInt($("c-details-attendees").value, 10) || 10;
+  const virtual = $("c-virtual-meeting").checked ? "Virtual Link" : "In-Person";
+  
+  const selectedItems = [];
+  document.querySelectorAll(".stationery-opt-cb:checked").forEach(cb => {
+    const idx = cb.getAttribute("data-idx");
+    const qtyInput = $(`st-qty-${idx}`);
+    const qty = qtyInput ? qtyInput.value : count;
+    selectedItems.push(`${cb.value} (${qty})`);
+  });
+  
+  const food = getSelectedFood();
+  
+  let summary = `${count} attendees &middot; ${virtual}`;
+  if (selectedItems.length > 0) summary += ` &middot; Stationery: ${selectedItems.join(", ")}`;
+  if (food) summary += ` &middot; Refreshments requested (${food})`;
+  
+  $("details-summary-text").innerHTML = summary;
+}
+
+function setupStepDetailsUI() {
+  // Sync attendee amount oninput
+  $("c-details-attendees").oninput = (e) => {
+    const val = parseInt(e.target.value, 10) || 1;
+    updateStationeryLabels(val);
+  };
+  
+  // Toggle food options sub-container
+  $("c-food-requested").onchange = (e) => {
+    if (e.target.checked) {
+      $("food-options-container").classList.remove("hidden");
+    } else {
+      $("food-options-container").classList.add("hidden");
+    }
+    updateDetailsSummary();
+  };
+  
+  // Re-map the food checkbox handler with selector support since $ custom function is used
+  $("c-food-requested").addEventListener("change", (e) => {
+    const container = document.getElementById("food-options-container");
+    if (e.target.checked) {
+      container.classList.remove("hidden");
+    } else {
+      container.classList.add("hidden");
+    }
+    updateDetailsSummary();
+  });
+  
+  $("c-virtual-meeting").onchange = updateDetailsSummary;
+  $("food-morning-tea").onchange = updateDetailsSummary;
+  $("food-lunch").onchange = updateDetailsSummary;
+  $("food-evening-tea").onchange = updateDetailsSummary;
 }
 
 // Initialise
