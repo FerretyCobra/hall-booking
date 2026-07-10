@@ -11,15 +11,22 @@ class LoginIn(BaseModel):
     password: str
 
 
+class CredentialsUpdateIn(BaseModel):
+    new_username: str
+    new_password: str
+
+
 # ---- halls ----
 class HallIn(BaseModel):
     name: str
     capacity: int = 0
+    image: Optional[str] = None
 
 
 class HallPatch(BaseModel):
     name: Optional[str] = None
     capacity: Optional[int] = None
+    image: Optional[str] = None
     active: Optional[bool] = None
 
 
@@ -27,6 +34,7 @@ class HallOut(BaseModel):
     id: int
     name: str
     capacity: int
+    image: Optional[str] = None
     active: bool
 
     class Config:
@@ -67,6 +75,21 @@ class HallFeatureIn(BaseModel):
 # ---- bookings ----
 class BookingIn(BaseModel):
     hall_id: int
+    booking_date: date
+    start_time: str  # "HH:MM"
+    end_time: str    # "HH:MM"
+    booked_by: str
+    dept: Optional[str] = None
+    purpose: Optional[str] = None
+    support_staff_requested: bool = False
+    scientist_designation: Optional[str] = None
+    project_id: Optional[str] = None
+    attendees_count: Optional[int] = None
+    features_requested: Optional[str] = None
+
+
+class BookingUpdateIn(BaseModel):
+    cancel_code: str
     booking_date: date
     start_time: str  # "HH:MM"
     end_time: str    # "HH:MM"

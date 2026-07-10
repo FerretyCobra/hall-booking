@@ -1,6 +1,8 @@
 """IT hall management. Rename is safe because bookings reference hall_id, not
 the name. 'Delete' is a soft archive so historical bookings keep their hall."""
-from fastapi import APIRouter, Depends, HTTPException, Request
+import shutil
+from pathlib import Path
+from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File
 from sqlalchemy.orm import Session
 
 from ..database import get_db, transaction
@@ -21,7 +23,7 @@ def list_all(db: Session = Depends(get_db), user: User = Depends(require_admin))
 def create(payload: HallIn, request: Request,
            db: Session = Depends(get_db), user: User = Depends(require_admin)):
     with transaction(db):
-        hall = Hall(name=payload.name.strip(), capacity=payload.capacity)
+        hall = Hall(name=payload.name.strip(), capacity=payload.capacity, image=payload.image)
         db.add(hall)
         db.flush()
         audit.log(db, "hall.create", entity="hall", entity_id=hall.id,
@@ -40,9 +42,42 @@ def update(hall_id: int, payload: HallPatch, request: Request,
             hall.name = payload.name.strip()
         if payload.capacity is not None:
             hall.capacity = payload.capacity
+        if payload.image is not None:
+            hall.image = payload.image
         if payload.active is not None:
             hall.active = payload.active
         audit.log(db, "hall.update", entity="hall", entity_id=hall.id,
                   actor=user.username, actor_ip=request.client.host,
                   detail=payload.model_dump(exclude_none=True).__str__())
+    return hall
+
+
+@router.post("/{hall_id}/picture", response_model=HallOut)
+def upload_picture(hall_id: int, request: Request, file: UploadFile = File(...),
+                   db: Session = Depends(get_db), user: User = Depends(require_admin)):
+    hall = db.get(Hall, hall_id)
+    if not hall:
+        raise HTTPException(404, "Hall not found.")
+    if not file.content_type.startswith("image/"):
+        raise HTTPException(400, "Uploaded file must be an image.")
+    
+    ext = Path(file.filename).suffix.lower()
+    if ext not in [".png", ".jpg", ".jpeg", ".webp", ".gif"]:
+        ext = ".png"
+        
+    filename = f"hall_{hall_id}{ext}"
+    
+    from ..config import BASE_DIR
+    static_images_dir = BASE_DIR / "static" / "images"
+    static_images_dir.mkdir(exist_ok=True, parents=True)
+    
+    dest_path = static_images_dir / filename
+    with open(dest_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+        
+    with transaction(db):
+        hall.image = filename
+        audit.log(db, "hall.update_picture", entity="hall", entity_id=hall.id,
+                  actor=user.username, actor_ip=request.client.host,
+                  detail=f"Uploaded image: {filename}")
     return hall

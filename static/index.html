@@ -10,7 +10,10 @@
 <body>
   <div class="topbar">
     <span class="brand"><span class="dot"></span> ICMR-NITVAR Hall Portal</span>
-    <a href="/dashboard" class="dashboard-link">IT Dashboard &rarr;</a>
+    <span>
+      <a href="#" id="link-cancel-booking" class="dashboard-link" style="margin-right: 12px; color: #dc2626;">Cancel Booking</a>
+      <a href="/dashboard" class="dashboard-link">IT Dashboard &rarr;</a>
+    </span>
   </div>
 
   <div class="wrap">
@@ -40,10 +43,51 @@
       </div>
     </div>
 
+    <!-- Cancel Booking Card -->
+    <div class="card hidden" id="step-cancel">
+      <h2>Cancel Booking</h2>
+      <p class="instructions">Enter the Cancel Code that you received when registering your booking. Cancelling will instantly free up the slot for others.</p>
+      
+      <div id="cancel-error"></div>
+      
+      <div class="row">
+        <div class="field">
+          <label for="c-cancel-code">Cancel Code (6 characters)</label>
+          <input type="text" id="c-cancel-code" placeholder="e.g. ABCDEF" style="text-transform: uppercase;" />
+        </div>
+      </div>
+      
+      <div class="button-group">
+        <button class="ghost" id="btn-cancel-back">Back</button>
+        <button id="btn-submit-cancel" style="background: #dc2626; border-color: #dc2626;">Cancel Meeting</button>
+      </div>
+    </div>
+
     <!-- Step 1: Choose Hall -->
     <div class="card" id="step-halls">
       <h2>Available Conference Halls & Rooms</h2>
       <p class="section-desc">Select a space below to configure its availability options.</p>
+      
+      <!-- Search & Filters -->
+      <div class="inline-form" style="margin-bottom: 24px; padding: 16px; background: var(--bg-subtle); border-radius: var(--radius); border: 1px solid var(--border); display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end;">
+        <div style="flex: 2 1 200px;">
+          <label for="filter-name" style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); margin-bottom: 6px;">Search by Name</label>
+          <input type="text" id="filter-name" placeholder="Search conference halls..." style="padding: 8px 12px; font-size: 13px;" />
+        </div>
+        <div style="flex: 1 1 100px;">
+          <label for="filter-capacity" style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); margin-bottom: 6px;">Min Seats</label>
+          <input type="number" id="filter-capacity" min="0" value="0" style="padding: 8px 12px; font-size: 13px;" />
+        </div>
+        <div style="flex: 2 1 180px;">
+          <label for="filter-feature" style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); margin-bottom: 6px;">Required Feature</label>
+          <select id="filter-feature" style="padding: 8px 12px; font-size: 13px;">
+            <option value="">-- All Amenities --</option>
+          </select>
+        </div>
+        <div style="flex: 0 0 auto;">
+          <button type="button" class="ghost" id="btn-clear-filters" style="padding: 8px 14px; font-size: 13px;">Reset</button>
+        </div>
+      </div>
       
       <div class="hall-grid" id="hall-grid-container">
         <!-- Populated dynamically via JS -->
@@ -84,11 +128,11 @@
         <div class="row">
           <div class="field">
             <label for="c-start-time">Start Time</label>
-            <input type="time" id="c-start-time" min="09:30" max="17:30" step="900" />
+            <input type="time" id="c-start-time" />
           </div>
           <div class="field">
             <label for="c-end-time">End Time</label>
-            <input type="time" id="c-end-time" min="09:30" max="17:30" step="900" />
+            <input type="time" id="c-end-time" />
           </div>
         </div>
       </div>
@@ -222,13 +266,15 @@
           <div class="muted subtext">Save this code. You will need it to cancel or modify this booking.</div>
         </div>
 
-        <div style="margin-top:24px;">
+        <div style="margin-top:24px; display: flex; gap: 12px; justify-content: center;">
           <button class="ghost" id="btn-new">Register Another Booking</button>
+          <button type="button" id="btn-screenshot" style="background: #0284c7; border-color: #0284c7;">Download Receipt (Screenshot)</button>
         </div>
       </div>
     </div>
   </div>
-
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="/static/js/portal.js"></script>
 </body>
 </html>

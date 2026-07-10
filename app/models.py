@@ -28,6 +28,7 @@ class Hall(Base):
     id = Column(Integer, primary_key=True)
     name = Column(String, nullable=False)
     capacity = Column(Integer, nullable=False, default=0)
+    image = Column(String, nullable=True)  # custom picture filename/URL
     active = Column(Boolean, nullable=False, default=True)  # soft-delete via active=False
     created_at = Column(DateTime, default=datetime.utcnow)
 

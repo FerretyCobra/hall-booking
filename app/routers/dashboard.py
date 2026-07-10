@@ -38,6 +38,7 @@ def bookings(
             "project_id": b.project_id,
             "attendees_count": b.attendees_count,
             "features_requested": b.features_requested,
+            "cancel_code": b.cancel_code,
         }
         for b, h in rows
     ]

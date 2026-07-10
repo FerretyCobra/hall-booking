@@ -103,6 +103,20 @@ document.querySelectorAll(".tab").forEach((t) => {
       if (name === "live") { loadLive(); updateMetrics(); }
       if (name === "features") { loadFeatures(); updateMetrics(); }
       if (name === "audit") { loadAudit(); }
+      if (name === "cancel") {
+        $("dash-c-cancel-code").value = "";
+        $("dash-cancel-error").innerHTML = "";
+      }
+      if (name === "security") {
+        $("dash-security-error").innerHTML = "";
+        $("dash-security-success").innerHTML = "";
+        $("sec-password").value = "";
+        api("/api/auth/me").then(user => {
+          $("sec-username").value = user.username;
+        }).catch(err => {
+          $("dash-security-error").innerHTML = `<div class="error-msg">Failed to load user info.</div>`;
+        });
+      }
     }
   };
 });
@@ -156,6 +170,7 @@ async function loadLive(quiet) {
         <th>Features</th>
         <th>IT Support</th>
         <th>Status</th>
+        <th>Cancel Code</th>
         <th>Request IP</th>
       </tr>
     </thead>
@@ -173,6 +188,7 @@ async function loadLive(quiet) {
         <td><span class="pill">${b.features_requested || "None"}</span></td>
         <td>${b.support_staff_requested ? '<span class="status-tag confirmed">Requested</span>' : '<span>No</span>'}</td>
         <td><span class="status-tag ${b.status}">${b.status}</span></td>
+        <td><code>${b.cancel_code || ""}</code></td>
         <td class="muted"><code>${b.created_ip || ""}</code></td>
       </tr>`).join("")}
     </tbody>
@@ -240,12 +256,18 @@ async function patchHall(id, body) {
 $("h-add").onclick = async () => {
   const name = $("h-name").value.trim(); 
   if (!name) return;
+  const imageVal = $("h-image").value.trim() || null;
   await api("/api/admin/halls", { 
     method: "POST", 
-    body: JSON.stringify({ name, capacity: parseInt($("h-cap").value || "0", 10) }) 
+    body: JSON.stringify({ 
+      name, 
+      capacity: parseInt($("h-cap").value || "0", 10),
+      image: imageVal
+    }) 
   });
   $("h-name").value = ""; 
   $("h-cap").value = "0"; 
+  $("h-image").value = "";
   await loadHalls();
   updateMetrics();
 };
@@ -274,6 +296,16 @@ async function openHallDetail(hallId) {
   $("detail-hall-title").textContent = `Configure Room: ${hall.name}`;
   $("detail-hall-name").value = hall.name;
   $("detail-hall-cap").value = hall.capacity;
+  
+  // Set current image preview or default placeholder
+  if (hall.image) {
+    $("detail-hall-img-preview").src = `/static/images/${hall.image}?t=${Date.now()}`;
+  } else {
+    $("detail-hall-img-preview").src = "/static/images/hall_placeholder.png";
+  }
+  $("detail-hall-file").value = "";
+  $("detail-hall-file-name").textContent = "";
+  $("btn-detail-upload-img").disabled = true;
   
   // Load global feature catalog
   globalFeaturesCatalog = await api("/api/admin/features");
@@ -306,6 +338,57 @@ $("btn-detail-save").onclick = async () => {
     updateMetrics();
   } catch (e) {
     $("detail-hall-error").innerHTML = `<div class="error-msg">${e.message || "Failed to update."}</div>`;
+  }
+};
+
+$("detail-hall-file").onchange = (e) => {
+  const file = e.target.files[0];
+  if (!file) {
+    $("detail-hall-file-name").textContent = "";
+    $("btn-detail-upload-img").disabled = true;
+    return;
+  }
+  $("detail-hall-file-name").textContent = file.name;
+  $("btn-detail-upload-img").disabled = false;
+  
+  const reader = new FileReader();
+  reader.onload = (evt) => {
+    $("detail-hall-img-preview").src = evt.target.result;
+  };
+  reader.readAsDataURL(file);
+};
+
+$("btn-detail-upload-img").onclick = async () => {
+  const fileInput = $("detail-hall-file");
+  const file = fileInput.files[0];
+  if (!file) return;
+  
+  $("detail-hall-error").innerHTML = "";
+  $("btn-detail-upload-img").disabled = true;
+  $("btn-detail-upload-img").textContent = "Uploading...";
+  
+  const formData = new FormData();
+  formData.append("file", file);
+  
+  try {
+    const res = await fetch(`/api/admin/halls/${activeHallId}/picture`, {
+      method: "POST",
+      body: formData
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "Upload failed.");
+    
+    if (data.image) {
+      $("detail-hall-img-preview").src = `/static/images/${data.image}?t=${Date.now()}`;
+    }
+    $("detail-hall-file").value = "";
+    $("detail-hall-file-name").textContent = "";
+    alert("Picture updated successfully!");
+  } catch (e) {
+    $("detail-hall-error").innerHTML = `<div class="error-msg">${e.message || "Failed to upload picture."}</div>`;
+    $("btn-detail-upload-img").disabled = false;
+  } finally {
+    $("btn-detail-upload-img").textContent = "Upload New Picture";
   }
 };
 
@@ -536,5 +619,60 @@ async function loadAudit() {
   </table>`
   : '<p class="muted" style="padding: 24px; text-align: center;">No administrative audit activities logged yet.</p>';
 }
+
+// ---------- Cancel Booking Tab Logic ----------
+$("btn-dash-submit-cancel").onclick = async () => {
+  const code = $("dash-c-cancel-code").value.trim().toUpperCase();
+  $("dash-cancel-error").innerHTML = "";
+  
+  if (!code) {
+    $("dash-cancel-error").innerHTML = '<div class="error-msg">Please enter a cancel code.</div>';
+    return;
+  }
+  
+  try {
+    await api("/api/bookings/by-code/cancel", {
+      method: "POST",
+      body: JSON.stringify({ cancel_code: code })
+    });
+    alert("Booking cancelled successfully! The slots have been freed up.");
+    $("dash-c-cancel-code").value = "";
+    updateMetrics();
+  } catch (e) {
+    const msg = e.message || "Failed to cancel booking. Please check the Cancel Code.";
+    $("dash-cancel-error").innerHTML = `<div class="error-msg">${msg}</div>`;
+  }
+};
+
+// ---------- Security Tab Logic ----------
+$("btn-dash-update-credentials").onclick = async () => {
+  $("dash-security-error").innerHTML = "";
+  $("dash-security-success").innerHTML = "";
+  
+  const newUsername = $("sec-username").value.trim();
+  const newPassword = $("sec-password").value;
+  
+  if (!newUsername) {
+    $("dash-security-error").innerHTML = '<div class="error-msg">Username cannot be empty.</div>';
+    return;
+  }
+  if (!newPassword) {
+    $("dash-security-error").innerHTML = '<div class="error-msg">Password cannot be empty.</div>';
+    return;
+  }
+  
+  try {
+    const res = await api("/api/auth/credentials", {
+      method: "POST",
+      body: JSON.stringify({ new_username: newUsername, new_password: newPassword })
+    });
+    
+    $("dash-security-success").innerHTML = `<div class="success-msg" style="color: #16a34a; font-weight: 600; margin-bottom: 16px;">Credentials updated successfully!</div>`;
+    $("sec-password").value = "";
+  } catch (e) {
+    const msg = e.message || "Failed to update credentials.";
+    $("dash-security-error").innerHTML = `<div class="error-msg">${msg}</div>`;
+  }
+};
 
 checkAuth();

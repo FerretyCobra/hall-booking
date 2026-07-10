@@ -57,6 +57,8 @@
         <div class="tab active" data-tab="live">Live Bookings</div>
         <div class="tab" data-tab="halls">Manage Halls</div>
         <div class="tab" data-tab="features">Feature Catalog</div>
+        <div class="tab" data-tab="cancel">Cancel Booking</div>
+        <div class="tab" data-tab="security">Security</div>
         <div class="tab" data-tab="audit">System Audit Log</div>
       </div>
 
@@ -103,6 +105,10 @@
               <label>Seats</label>
               <input id="h-cap" type="number" min="0" value="0" />
             </div>
+            <div>
+              <label>Image Filename (Optional)</label>
+              <input id="h-image" type="text" placeholder="e.g. boardroom.jpg" />
+            </div>
             <div style="flex:0 0 auto">
               <button id="h-add">Add Hall</button>
             </div>
@@ -134,7 +140,20 @@
                 <label for="detail-hall-cap">Seat Capacity</label>
                 <input type="number" id="detail-hall-cap" min="0" />
               </div>
-              <button id="btn-detail-save" style="width: 100%;">Save General Details</button>
+              <button id="btn-detail-save" style="width: 100%; margin-bottom: 24px;">Save General Details</button>
+              
+              <h3 style="border-top: 1px solid var(--border); padding-top: 16px; margin-top: 16px;">Hall Picture</h3>
+              <div class="field">
+                <div style="margin-bottom: 12px; border: 1px dashed var(--border); padding: 8px; text-align: center; border-radius: var(--radius); background: var(--bg-subtle);">
+                  <img id="detail-hall-img-preview" src="/static/images/hall_placeholder.png" style="max-width: 100%; max-height: 140px; border-radius: var(--radius-sm); object-fit: cover;" />
+                </div>
+                <label for="detail-hall-file" style="display: block; text-align: center; border: 1px solid var(--border); padding: 8px; border-radius: var(--radius); font-weight: 500; font-size: 13px; background: var(--bg); cursor: pointer; transition: all 0.2s;">
+                  Choose New Image...
+                </label>
+                <input type="file" id="detail-hall-file" accept="image/*" style="display: none;" />
+                <div id="detail-hall-file-name" style="font-size: 12px; margin-top: 4px; color: var(--text-muted); text-align: center;"></div>
+              </div>
+              <button id="btn-detail-upload-img" style="width: 100%;" class="ghost" disabled>Upload New Picture</button>
             </div>
             
             <!-- Right Side: Features Assignment -->
@@ -212,6 +231,43 @@
         
         <div class="table-responsive">
           <div id="audit-table"></div>
+        </div>
+      </div>
+
+      <!-- Cancel Booking Tab -->
+      <div class="card tab-body hidden" id="tab-cancel">
+        <h2>Cancel Booking by Cancel Code</h2>
+        <p class="instructions">Enter the Cancel Code of the booking you want to cancel. This will instantly release the hall reservation.</p>
+        <div id="dash-cancel-error"></div>
+        
+        <div class="inline-form" style="max-width: 500px; margin-bottom: 24px;">
+          <div>
+            <label for="dash-c-cancel-code">Cancel Code</label>
+            <input type="text" id="dash-c-cancel-code" placeholder="e.g. ABCDEF" style="text-transform: uppercase;" />
+          </div>
+          <div style="flex:0 0 auto">
+            <button id="btn-dash-submit-cancel" style="background: #dc2626; border-color: #dc2626;">Cancel Meeting</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Security Settings Tab -->
+      <div class="card tab-body hidden" id="tab-security">
+        <h2>Change Admin Credentials</h2>
+        <p class="instructions">Update the administrative username and/or password. Note: You will need to use these credentials next time you sign in.</p>
+        <div id="dash-security-error"></div>
+        <div id="dash-security-success"></div>
+        
+        <div style="max-width: 400px;">
+          <div class="field">
+            <label for="sec-username">New Username</label>
+            <input type="text" id="sec-username" />
+          </div>
+          <div class="field" style="margin-bottom: 24px;">
+            <label for="sec-password">New Password</label>
+            <input type="password" id="sec-password" placeholder="Enter new strong password" />
+          </div>
+          <button id="btn-dash-update-credentials" style="width: 100%;">Save New Credentials</button>
         </div>
       </div>
     </div>

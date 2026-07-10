@@ -31,20 +31,19 @@ def _new_code() -> str:
     return "".join(secrets.choice(_CODE_ALPHABET) for _ in range(6))
 
 
-def find_conflict(db: Session, hall_id: int, booking_date, start: str, end: str):
+def find_conflict(db: Session, hall_id: int, booking_date, start: str, end: str, exclude_id: int | None = None):
     """Return a confirmed booking that overlaps [start, end) on this hall/date,
     or None. Overlap test: existing.start < end AND existing.end > start."""
-    return (
-        db.query(Booking)
-        .filter(
-            Booking.hall_id == hall_id,
-            Booking.booking_date == booking_date,
-            Booking.status == "confirmed",
-            Booking.start_time < end,
-            Booking.end_time > start,
-        )
-        .first()
+    q = db.query(Booking).filter(
+        Booking.hall_id == hall_id,
+        Booking.booking_date == booking_date,
+        Booking.status == "confirmed",
+        Booking.start_time < end,
+        Booking.end_time > start,
     )
+    if exclude_id is not None:
+        q = q.filter(Booking.id != exclude_id)
+    return q.first()
 
 
 def create_booking(db: Session, data, ip: str | None) -> Booking:
@@ -108,4 +107,52 @@ def cancel_booking(db: Session, booking_id: int, code: str, ip: str | None) -> B
         booking.status = "cancelled"
         audit.log(db, "booking.cancel", entity="booking", entity_id=booking.id,
                   actor=booking.booked_by, actor_ip=ip)
+    return booking
+
+
+def update_booking(db: Session, booking_id: int, cancel_code: str, data, ip: str | None) -> Booking:
+    if not _valid_time(data.start_time) or not _valid_time(data.end_time):
+        raise BookingError("Times must be in HH:MM 24-hour format.")
+    if data.end_time <= data.start_time:
+        raise BookingError("End time must be after start time.")
+    if not data.booked_by.strip():
+        raise BookingError("Please enter who is booking.")
+
+    with transaction(db):
+        booking = db.get(Booking, booking_id)
+        if not booking or booking.status != "confirmed":
+            raise BookingError("Booking not found or already cancelled.")
+        if booking.cancel_code.upper() != (cancel_code or "").strip().upper():
+            raise BookingError("That cancel code doesn't match.")
+
+        hall = db.get(Hall, data.hall_id)
+        if not hall or not hall.active:
+            raise BookingError("That hall is not available.")
+
+        clash = find_conflict(db, data.hall_id, data.booking_date,
+                              data.start_time, data.end_time, exclude_id=booking_id)
+        if clash:
+            raise BookingError(
+                f"{clash.start_time}\u2013{clash.end_time} is already taken "
+                f"by {clash.booked_by}.",
+                conflict=clash,
+            )
+
+        booking.hall_id = data.hall_id
+        booking.booking_date = data.booking_date
+        booking.start_time = data.start_time
+        booking.end_time = data.end_time
+        booking.booked_by = data.booked_by.strip()
+        booking.dept = data.dept
+        booking.purpose = data.purpose
+        booking.support_staff_requested = data.support_staff_requested
+        booking.scientist_designation = data.scientist_designation
+        booking.project_id = data.project_id
+        booking.attendees_count = data.attendees_count
+        booking.features_requested = data.features_requested
+
+        db.flush()
+        audit.log(db, "booking.update", entity="booking", entity_id=booking.id,
+                  actor=booking.booked_by, actor_ip=ip,
+                  detail=f"{hall.name} {data.booking_date} {data.start_time}-{data.end_time}")
     return booking

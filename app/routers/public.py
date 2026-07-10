@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from ..config import DAY_START, DAY_END, SLOT_MINUTES
 from ..database import get_db
 from ..models import Hall, HallFeature, Booking, FeatureCatalog, FeatureOption
-from ..schemas import BookingIn, CancelIn
+from ..schemas import BookingIn, CancelIn, BookingUpdateIn
 from ..services import bookings as booking_svc
 
 router = APIRouter(prefix="/api", tags=["public"])
@@ -70,7 +70,7 @@ def list_halls(
         halls = keep
 
     return [
-        {"id": h.id, "name": h.name, "capacity": h.capacity,
+        {"id": h.id, "name": h.name, "capacity": h.capacity, "image": h.image,
          "features": _hall_feature_summary(db, h.id)}
         for h in halls
     ]
@@ -90,7 +90,7 @@ def availability(hall_id: int, on: date, db: Session = Depends(get_db)):
         .all()
     )
     return {
-        "hall": {"id": hall.id, "name": hall.name, "capacity": hall.capacity,
+        "hall": {"id": hall.id, "name": hall.name, "capacity": hall.capacity, "image": hall.image,
                  "features": _hall_feature_summary(db, hall.id)},
         "date": on.isoformat(),
         "bookings": [
@@ -128,11 +128,63 @@ def book(payload: BookingIn, request: Request, db: Session = Depends(get_db)):
             "features_requested": b.features_requested}
 
 
-@router.post("/bookings/{booking_id}/cancel")
-def cancel(booking_id: int, payload: CancelIn, request: Request,
+@router.post("/bookings/by-code/cancel")
+def cancel(payload: CancelIn, request: Request,
            db: Session = Depends(get_db)):
+    booking = db.query(Booking).filter(Booking.cancel_code == payload.cancel_code.strip().upper()).first()
+    if not booking or booking.status != "confirmed":
+        raise HTTPException(404, "Booking not found or already cancelled.")
     try:
-        booking_svc.cancel_booking(db, booking_id, payload.cancel_code, _client_ip(request))
+        booking_svc.cancel_booking(db, booking.id, payload.cancel_code, _client_ip(request))
     except booking_svc.BookingError as e:
         raise HTTPException(400, e.message)
     return {"status": "cancelled"}
+
+
+@router.get("/bookings/by-code")
+def get_booking(cancel_code: str, db: Session = Depends(get_db)):
+    booking = db.query(Booking).filter(Booking.cancel_code == cancel_code.strip().upper()).first()
+    if not booking:
+        raise HTTPException(404, "Booking not found.")
+    return {
+        "id": booking.id,
+        "hall_id": booking.hall_id,
+        "booking_date": booking.booking_date.isoformat(),
+        "start_time": booking.start_time,
+        "end_time": booking.end_time,
+        "booked_by": booking.booked_by,
+        "dept": booking.dept,
+        "purpose": booking.purpose,
+        "support_staff_requested": booking.support_staff_requested,
+        "scientist_designation": booking.scientist_designation,
+        "project_id": booking.project_id,
+        "attendees_count": booking.attendees_count,
+        "features_requested": booking.features_requested,
+        "status": booking.status
+    }
+
+
+@router.post("/bookings/by-code/update")
+def update(payload: BookingUpdateIn, request: Request,
+           db: Session = Depends(get_db)):
+    booking = db.query(Booking).filter(Booking.cancel_code == payload.cancel_code.strip().upper()).first()
+    if not booking:
+        raise HTTPException(404, "Booking not found.")
+    try:
+        b = booking_svc.update_booking(db, booking.id, payload.cancel_code, payload, _client_ip(request))
+    except booking_svc.BookingError as e:
+        detail = {"message": e.message}
+        if e.conflict:
+            detail["conflict"] = {
+                "start": e.conflict.start_time, "end": e.conflict.end_time,
+                "booked_by": e.conflict.booked_by, "purpose": e.conflict.purpose,
+            }
+        raise HTTPException(409, detail)
+    return {"id": b.id, "cancel_code": b.cancel_code,
+            "start": b.start_time, "end": b.end_time,
+            "booked_by": b.booked_by, "dept": b.dept,
+            "support_staff_requested": b.support_staff_requested,
+            "scientist_designation": b.scientist_designation,
+            "project_id": b.project_id,
+            "attendees_count": b.attendees_count,
+            "features_requested": b.features_requested}

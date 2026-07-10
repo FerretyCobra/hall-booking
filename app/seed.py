@@ -9,6 +9,11 @@ from .config import DEFAULT_ADMIN_USER, DEFAULT_ADMIN_PASS
 
 def init_db():
     Base.metadata.create_all(bind=engine)
+    with engine.begin() as conn:
+        info = conn.exec_driver_sql("PRAGMA table_info(halls)").fetchall()
+        cols = [row[1] for row in info]
+        if "image" not in cols:
+            conn.exec_driver_sql("ALTER TABLE halls ADD COLUMN image TEXT")
     db = SessionLocal()
     try:
         if db.query(User).count() == 0:

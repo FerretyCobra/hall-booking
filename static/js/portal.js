@@ -5,7 +5,7 @@ const state = {
   halls: [],
   selectedHall: null,
   date: null, // "YYYY-MM-DD"
-  cfg: { day_start: "09:30", day_end: "17:30", slot_minutes: 15 }, // hardcoded for 15-min precision
+  cfg: { day_start: "09:00", day_end: "18:00", slot_minutes: 30 }, // default fallback, populated dynamically
   bookings: [], // list of existing bookings for selected date/hall
   selectedStartSlot: null, // "HH:MM"
   selectedEndSlot: null, // "HH:MM"
@@ -72,15 +72,42 @@ async function api(path, opts) {
 // Initialise Application
 async function init() {
   state.date = todayISO();
+  try {
+    const config = await api("/api/config");
+    state.cfg = {
+      day_start: config.day_start || "09:00",
+      day_end: config.day_end || "18:00",
+      slot_minutes: config.slot_minutes || 30
+    };
+  } catch (e) {
+    console.error("Error loading config", e);
+  }
+  
+  // Set up custom time input limits dynamically based on loaded config
+  const cStart = $("c-start-time");
+  const cEnd = $("c-end-time");
+  if (cStart && cEnd) {
+    cStart.min = state.cfg.day_start;
+    cStart.max = state.cfg.day_end;
+    cStart.step = state.cfg.slot_minutes * 60; // HTML step is in seconds
+    cEnd.min = state.cfg.day_start;
+    cEnd.max = state.cfg.day_end;
+    cEnd.step = state.cfg.slot_minutes * 60;
+  }
+  
   await loadHalls();
   renderHalls();
   setWizardStep(1);
+  setupSearchFilters(); // setup UI filters for halls
+  setupBookingCancellationUI(); // setup UI elements for cancellation
 }
 
 // Fetch halls from backend
+let allHalls = [];
 async function loadHalls() {
   try {
-    state.halls = await api("/api/halls");
+    allHalls = await api("/api/halls");
+    state.halls = [...allHalls];
   } catch (e) {
     console.error("Error loading halls", e);
   }
@@ -125,9 +152,10 @@ async function renderHalls() {
       availableText = "Available for booking";
     }
     
+    const imgUrl = hall.image ? `/static/images/${hall.image}` : '/static/images/hall_placeholder.png';
     card.innerHTML = `
       <div class="hall-image-container">
-        <img src="/static/images/hall_placeholder.png" alt="${hall.name}" class="hall-card-img" />
+        <img src="${imgUrl}" alt="${hall.name}" class="hall-card-img" />
       </div>
       <div class="hall-card-header" style="margin-top: 12px; margin-bottom: 8px;">
         <h2 class="hall-card-title">${hall.name}</h2>
@@ -222,10 +250,10 @@ async function fetchAvailability() {
   }
 }
 
-// Check if a 15-minute slot overlaps with any confirmed booking
+// Check if a slot overlaps with any confirmed booking
 function isSlotBusy(timeStr) {
   const slotStart = toMin(timeStr);
-  const slotEnd = slotStart + 15;
+  const slotEnd = slotStart + state.cfg.slot_minutes;
   return state.bookings.find(b => toMin(b.start) < slotEnd && toMin(b.end) > slotStart);
 }
 
@@ -237,7 +265,7 @@ function renderGrid() {
   const startM = toMin(state.cfg.day_start); // 09:30
   const endM = toMin(state.cfg.day_end);     // 17:30
   
-  for (let m = startM; m < endM; m += 15) {
+  for (let m = startM; m < endM; m += state.cfg.slot_minutes) {
     const t = fmt(m);
     const busy = isSlotBusy(t);
     
@@ -295,7 +323,7 @@ function handleGridSlotClick(t) {
     } else {
       // Check if there is any busy slot in between [start, clicked_slot)
       let hasBusyInBetween = false;
-      for (let m = startMin; m < slotMin; m += 15) {
+      for (let m = startMin; m < slotMin; m += state.cfg.slot_minutes) {
         if (isSlotBusy(fmt(m))) {
           hasBusyInBetween = true;
           break;
@@ -327,13 +355,13 @@ $("btn-toggle-custom-time").onclick = () => {
     $("btn-toggle-custom-time").textContent = "Use Chart Selection";
     
     // Set default custom times
-    $("c-start-time").value = state.selectedStartSlot || "09:30";
+    $("c-start-time").value = state.selectedStartSlot || state.cfg.day_start;
     if (state.selectedEndSlot) {
       $("c-end-time").value = state.selectedEndSlot;
     } else if (state.selectedStartSlot) {
-      $("c-end-time").value = fmt(toMin(state.selectedStartSlot) + 30);
+      $("c-end-time").value = fmt(toMin(state.selectedStartSlot) + state.cfg.slot_minutes);
     } else {
-      $("c-end-time").value = "10:00";
+      $("c-end-time").value = fmt(toMin(state.cfg.day_start) + state.cfg.slot_minutes);
     }
   } else {
     $("grid-selector-container").classList.remove("hidden");
@@ -360,8 +388,8 @@ function validateAndSetCustomTimes() {
     return;
   }
   
-  if (toMin(start) < toMin("09:30") || toMin(end) > toMin("17:30")) {
-    $("tl-summary").textContent = "Error: Booking must be within 09:30 to 17:30";
+  if (toMin(start) < toMin(state.cfg.day_start) || toMin(end) > toMin(state.cfg.day_end)) {
+    $("tl-summary").textContent = `Error: Booking must be within ${state.cfg.day_start} to ${state.cfg.day_end}`;
     $("btn-continue-to-features").disabled = true;
     return;
   }
@@ -584,7 +612,115 @@ $("btn-book").onclick = async () => {
   }
 };
 
-$("btn-new").onclick = () => location.reload();
+  $("btn-screenshot").onclick = () => {
+    const element = $("step-done");
+    // Temporarily hide the buttons in the screenshot
+    const btnGroup = element.querySelector(".success .button-group") || element.querySelector("div[style*='display: flex']");
+    if (btnGroup) btnGroup.style.visibility = "hidden";
+    
+    html2canvas(element, {
+      backgroundColor: "#ffffff",
+      scale: 2 // High-res screenshot
+    }).then(canvas => {
+      if (btnGroup) btnGroup.style.visibility = "visible";
+      const link = document.createElement("a");
+      link.download = `Booking_Receipt_${$("done-code").textContent}.png`;
+      link.href = canvas.toDataURL("image/png");
+      link.click();
+    });
+  };
+
+  $("btn-new").onclick = () => {
+  location.reload();
+};
+
+// Search & Filter halls list
+function populateFeaturesFilter() {
+  const select = $("filter-feature");
+  if (!select) return;
+  const uniqueFeatures = new Set();
+  allHalls.forEach(hall => {
+    (hall.features || []).forEach(f => {
+      const name = f.split(":")[0].trim();
+      uniqueFeatures.add(name);
+    });
+  });
+  select.innerHTML = '<option value="">-- All Amenities --</option>' + 
+    Array.from(uniqueFeatures).map(f => `<option value="${f}">${f}</option>`).join("");
+}
+
+function applyFilters() {
+  const nameQuery = $("filter-name").value.toLowerCase().trim();
+  const minCap = parseInt($("filter-capacity").value, 10) || 0;
+  const reqFeature = $("filter-feature").value;
+  
+  state.halls = allHalls.filter(hall => {
+    const matchesName = hall.name.toLowerCase().includes(nameQuery);
+    const matchesCap = hall.capacity >= minCap;
+    
+    let matchesFeature = true;
+    if (reqFeature) {
+      matchesFeature = (hall.features || []).some(f => f.startsWith(reqFeature));
+    }
+    return matchesName && matchesCap && matchesFeature;
+  });
+  renderHalls();
+}
+
+function setupSearchFilters() {
+  populateFeaturesFilter();
+  $("filter-name").oninput = applyFilters;
+  $("filter-capacity").oninput = applyFilters;
+  $("filter-feature").onchange = applyFilters;
+  $("btn-clear-filters").onclick = () => {
+    $("filter-name").value = "";
+    $("filter-capacity").value = "0";
+    $("filter-feature").value = "";
+    applyFilters();
+  };
+}
+
+// Cancel Booking UI
+function setupBookingCancellationUI() {
+  $("link-cancel-booking").onclick = (e) => {
+    e.preventDefault();
+    hide("step-halls");
+    show("step-cancel");
+    $("cancel-error").innerHTML = "";
+    $("c-cancel-code").value = "";
+  };
+  
+  $("btn-cancel-back").onclick = () => {
+    hide("step-cancel");
+    show("step-halls");
+  };
+  
+  $("btn-submit-cancel").onclick = async () => {
+    const cancelCode = $("c-cancel-code").value.trim().toUpperCase();
+    
+    if (!cancelCode) {
+      $("cancel-error").innerHTML = `<div class="error-msg">Please enter your Cancel Code.</div>`;
+      return;
+    }
+    
+    try {
+      await api("/api/bookings/by-code/cancel", {
+        method: "POST",
+        body: JSON.stringify({ cancel_code: cancelCode })
+      });
+      
+      alert("Booking cancelled successfully! The slots have been freed up.");
+      hide("step-cancel");
+      show("step-halls");
+      await loadHalls();
+      renderHalls();
+    } catch (e) {
+      console.error(e);
+      const msg = typeof e === "string" ? e : (e.message || "Failed to cancel booking. Please check your Cancel Code.");
+      $("cancel-error").innerHTML = `<div class="error-msg">${msg}</div>`;
+    }
+  };
+}
 
 // Initialise
 init();
