@@ -107,6 +107,7 @@ class Booking(Base):
     # Virtual Meeting details
     virtual_meeting_requested = Column(Boolean, default=False, nullable=False)
     meeting_link = Column(String, nullable=True)
+    reminder_sent = Column(Boolean, default=False, nullable=False)
 
     # Stationery & Food details
     stationery_requested = Column(String, nullable=True)

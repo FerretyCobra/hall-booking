@@ -8,6 +8,9 @@ from ..models import Booking, Hall, AuditLog, User, DropdownConfig
 from ..schemas import DropdownConfigIn
 from ..security import require_admin
 from ..services import audit
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/admin", tags=["admin:dashboard"])
 
@@ -66,8 +69,12 @@ def approve_booking(booking_id: int, db: Session = Depends(get_db), user: User =
     
     # Generate meeting link if requested
     if booking.virtual_meeting_requested and not booking.meeting_link:
-        provider = get_active_meeting_provider()
-        booking.meeting_link = provider.create_meeting(booking.id, booking.purpose or "Meeting")
+        try:
+            provider = get_active_meeting_provider()
+            booking.meeting_link = provider.create_meeting(booking.id, booking.purpose or "Meeting")
+        except Exception as e:
+            logger.error(f"Failed to generate virtual meeting link for approved booking {booking.id}: {e}")
+            booking.meeting_link = "Pending (Provider Error)"
         
     db.commit()
     

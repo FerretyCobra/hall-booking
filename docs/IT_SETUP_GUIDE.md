@@ -245,6 +245,17 @@ set EMAIL_CANTEEN=canteen@icmr-nitvar.res.in
 REM === VIRTUAL MEETING PROVIDER ===
 REM Options: mock (default), zoom, google
 set ACTIVE_MEETING_PROVIDER=mock
+
+REM Zoom S2S OAuth (Optional, required if ACTIVE_MEETING_PROVIDER=zoom)
+set ZOOM_ACCOUNT_ID=your_zoom_account_id_here
+set ZOOM_CLIENT_ID=your_zoom_client_id_here
+set ZOOM_CLIENT_SECRET=your_zoom_client_secret_here
+
+REM Google OAuth2 (Optional, required if ACTIVE_MEETING_PROVIDER=google)
+set GOOGLE_CLIENT_ID=your_google_client_id_here
+set GOOGLE_CLIENT_SECRET=your_google_client_secret_here
+set GOOGLE_REFRESH_TOKEN=your_google_refresh_token_here
+
 ```
 
 > ⚠️ Replace every placeholder value with real values before proceeding.

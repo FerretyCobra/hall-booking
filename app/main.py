@@ -7,13 +7,13 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from starlette.middleware.sessions import SessionMiddleware
 
-from .config import SECRET_KEY, BASE_DIR
+from .config import SECRET_KEY, BASE_DIR, SESSION_COOKIE_HTTPS_ONLY
 from .seed import init_db
 from .routers import public, auth, halls, features, dashboard
 
 app = FastAPI(title="Hall Booking")
 
-app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY, same_site="lax", https_only=False)
+app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY, same_site="lax", https_only=SESSION_COOKIE_HTTPS_ONLY)
 
 app.include_router(public.router)
 app.include_router(auth.router)

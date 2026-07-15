@@ -492,8 +492,8 @@ Strategy pattern — selected via `ACTIVE_MEETING_PROVIDER` env var:
 | Provider | Env Value | Behavior |
 |----------|-----------|---------|
 | `MockMeetingProvider` | `"mock"` (default) | `https://meet.mock.com/room/<uuid>` |
-| `ZoomMeetingProvider` | `"zoom"` | Stub for Zoom S2S OAuth |
-| `GoogleMeetProvider` | `"google"` | Stub for Google Calendar API |
+| `ZoomMeetingProvider` | `"zoom"` | Authenticates via Server-to-Server OAuth, fetches booking schedule, and creates a Zoom meeting via the Zoom API. |
+| `GoogleMeetProvider` | `"google"` | Refreshes Google OAuth2 credentials, creates a Google Calendar event, and extracts the Google Meet conference link. |
 
 ### 8.5 Settings Service (`app/services/settings.py`)
 
@@ -707,6 +707,12 @@ copy data\hall_booking.db "backups\hall_booking_$(Get-Date -Format 'yyyyMMdd').d
 | `EMAIL_STATIONERY` | Stationery email | `"stationery@icmr-nitvar.res.in"` |
 | `EMAIL_CANTEEN` | Canteen email | `"canteen@icmr-nitvar.res.in"` |
 | `ACTIVE_MEETING_PROVIDER` | Meeting link provider | `"mock"` / `"zoom"` / `"google"` |
+| `ZOOM_ACCOUNT_ID` | Zoom Account ID for S2S OAuth | `"123456789"` |
+| `ZOOM_CLIENT_ID` | Zoom Client ID | `"abc_client_id"` |
+| `ZOOM_CLIENT_SECRET` | Zoom Client Secret | `"secret_key"` |
+| `GOOGLE_CLIENT_ID` | Google Client ID | `"client_id.apps.googleusercontent.com"` |
+| `GOOGLE_CLIENT_SECRET` | Google Client Secret | `"client_secret_key"` |
+| `GOOGLE_REFRESH_TOKEN` | Google OAuth2 Refresh Token | `"1//refresh_token"` |
 
 ---
 
@@ -718,7 +724,6 @@ copy data\hall_booking.db "backups\hall_booking_$(Get-Date -Format 'yyyyMMdd').d
 |------|-----------|
 | Reminder deduplication | `SENT_REMINDERS` is in-memory; clears on server restart |
 | Admin accounts | Single admin account only |
-| Meeting providers | Zoom/Google Meet are stubs; need real API credentials |
 | Timezone | All times in server local time; no timezone support |
 | Recurring bookings | Not supported; each session booked individually |
 | Data export | No CSV/PDF export from dashboard |
@@ -729,7 +734,6 @@ copy data\hall_booking.db "backups\hall_booking_$(Get-Date -Format 'yyyyMMdd').d
 ### Planned Enhancements
 
 - Multi-admin role support
-- Real Zoom / Google Meet API integration
 - CSV/PDF report export
 - Past date validation
 - Cancellation notification emails

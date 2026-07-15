@@ -4,7 +4,7 @@ repeatedly; it only seeds when tables are empty."""
 from .database import SessionLocal, engine, Base
 from .models import User, Hall, FeatureCatalog, FeatureOption, HallFeature, DropdownConfig, SystemSetting
 from .security import hash_password
-from .config import DEFAULT_ADMIN_USER, DEFAULT_ADMIN_PASS
+from .config import DEFAULT_ADMIN_USER, DEFAULT_ADMIN_PASS, PRODUCTION_MODE
 
 
 def init_db():
@@ -33,6 +33,8 @@ def init_db():
             conn.exec_driver_sql("ALTER TABLE bookings ADD COLUMN virtual_meeting_requested BOOLEAN DEFAULT 0 NOT NULL")
         if "meeting_link" not in cols_bookings:
             conn.exec_driver_sql("ALTER TABLE bookings ADD COLUMN meeting_link TEXT")
+        if "reminder_sent" not in cols_bookings:
+            conn.exec_driver_sql("ALTER TABLE bookings ADD COLUMN reminder_sent BOOLEAN DEFAULT 0 NOT NULL")
         if "stationery_requested" not in cols_bookings:
             conn.exec_driver_sql("ALTER TABLE bookings ADD COLUMN stationery_requested TEXT")
         if "food_requested" not in cols_bookings:
@@ -43,6 +45,11 @@ def init_db():
     db = SessionLocal()
     try:
         if db.query(User).count() == 0:
+            if PRODUCTION_MODE and DEFAULT_ADMIN_USER == "admin" and DEFAULT_ADMIN_PASS == "admin":
+                raise RuntimeError(
+                    "CRITICAL SECURITY ALERT: Booting in production mode with default admin credentials is prohibited. "
+                    "Please configure unique values for HALL_ADMIN_USER and HALL_ADMIN_PASS in your environment."
+                )
             db.add(User(username=DEFAULT_ADMIN_USER,
                         password_hash=hash_password(DEFAULT_ADMIN_PASS),
                         role="admin"))

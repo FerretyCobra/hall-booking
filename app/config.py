@@ -1,6 +1,10 @@
 """Central configuration. Edit these to suit your site."""
 import os
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Load local environment file if present
+load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
@@ -41,4 +45,23 @@ DEPARTMENT_EMAILS = {
     "stationery": os.environ.get("EMAIL_STATIONERY", "stationery@icmr-nitvar.res.in"),
     "canteen": os.environ.get("EMAIL_CANTEEN", "canteen@icmr-nitvar.res.in"),
 }
+
+# Automated Virtual Meeting Integrations (Zoom / Google Meet / Mock)
+ACTIVE_MEETING_PROVIDER = os.environ.get("ACTIVE_MEETING_PROVIDER", "mock").lower()
+
+# Zoom Credentials (Server-to-Server OAuth)
+ZOOM_ACCOUNT_ID = os.environ.get("ZOOM_ACCOUNT_ID", "")
+ZOOM_CLIENT_ID = os.environ.get("ZOOM_CLIENT_ID", "")
+ZOOM_CLIENT_SECRET = os.environ.get("ZOOM_CLIENT_SECRET", "")
+
+# Google Credentials (OAuth2 Refresh Token / Calendar API)
+GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
+GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "")
+GOOGLE_REFRESH_TOKEN = os.environ.get("GOOGLE_REFRESH_TOKEN", "")
+
+# Production & Session Security settings
+PRODUCTION_MODE = os.environ.get("PRODUCTION_MODE", "False").lower() in ("true", "1", "yes")
+SESSION_COOKIE_HTTPS_ONLY = os.environ.get("SESSION_COOKIE_HTTPS_ONLY", "False").lower() in ("true", "1", "yes")
+
+
 

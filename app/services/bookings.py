@@ -4,11 +4,14 @@ import secrets
 import string
 
 from sqlalchemy.orm import Session
+import logging
 
 from ..database import transaction
 from ..models import Booking, Hall
 from . import audit
 from .meetings import get_active_meeting_provider
+
+logger = logging.getLogger(__name__)
 
 _CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"  # no ambiguous chars
 
@@ -59,12 +62,21 @@ def create_booking(db: Session, data, ip: str | None) -> Booking:
     if not data.booked_by.strip():
         raise BookingError("Please enter who is booking.")
 
+    import datetime
+    if data.booking_date < datetime.date.today():
+        raise BookingError("Bookings cannot be made for past dates.")
+
     # One transaction. The engine emits BEGIN IMMEDIATE, so the write lock is
     # held across this check-then-insert.
     with transaction(db):
         hall = db.get(Hall, data.hall_id)
         if not hall or not hall.active:
             raise BookingError("That hall is not available.")
+
+        if data.attendees_count is not None and data.attendees_count > hall.capacity:
+            raise BookingError(
+                f"Attendees count ({data.attendees_count}) exceeds the maximum capacity of {hall.name} ({hall.capacity})."
+            )
 
         clash = find_conflict(db, data.hall_id, data.booking_date,
                               data.start_time, data.end_time)
@@ -108,8 +120,12 @@ def create_booking(db: Session, data, ip: str | None) -> Booking:
 
         # If confirmed and virtual meeting requested, generate link
         if booking.status == "confirmed" and booking.virtual_meeting_requested:
-            provider = get_active_meeting_provider()
-            booking.meeting_link = provider.create_meeting(booking.id, booking.purpose or "Meeting")
+            try:
+                provider = get_active_meeting_provider()
+                booking.meeting_link = provider.create_meeting(booking.id, booking.purpose or "Meeting")
+            except Exception as e:
+                logger.error(f"Failed to generate virtual meeting link for booking {booking.id}: {e}")
+                booking.meeting_link = "Pending (Provider Error)"
 
         audit.log(db, "booking.create", entity="booking", entity_id=booking.id,
                   actor=booking.booked_by, actor_ip=ip,
@@ -153,6 +169,10 @@ def update_booking(db: Session, booking_id: int, cancel_code: str, data, ip: str
     if not data.booked_by.strip():
         raise BookingError("Please enter who is booking.")
 
+    import datetime
+    if data.booking_date < datetime.date.today():
+        raise BookingError("Bookings cannot be made for past dates.")
+
     with transaction(db):
         booking = db.get(Booking, booking_id)
         if not booking or booking.status not in ("confirmed", "pending_approval"):
@@ -163,6 +183,11 @@ def update_booking(db: Session, booking_id: int, cancel_code: str, data, ip: str
         hall = db.get(Hall, data.hall_id)
         if not hall or not hall.active:
             raise BookingError("That hall is not available.")
+
+        if data.attendees_count is not None and data.attendees_count > hall.capacity:
+            raise BookingError(
+                f"Attendees count ({data.attendees_count}) exceeds the maximum capacity of {hall.name} ({hall.capacity})."
+            )
 
         clash = find_conflict(db, data.hall_id, data.booking_date,
                               data.start_time, data.end_time, exclude_id=booking_id)
@@ -194,8 +219,12 @@ def update_booking(db: Session, booking_id: int, cancel_code: str, data, ip: str
 
         # Update meeting link if status changed or requested now
         if booking.status == "confirmed" and booking.virtual_meeting_requested and not booking.meeting_link:
-            provider = get_active_meeting_provider()
-            booking.meeting_link = provider.create_meeting(booking.id, booking.purpose or "Meeting")
+            try:
+                provider = get_active_meeting_provider()
+                booking.meeting_link = provider.create_meeting(booking.id, booking.purpose or "Meeting")
+            except Exception as e:
+                logger.error(f"Failed to generate virtual meeting link for booking {booking.id}: {e}")
+                booking.meeting_link = "Pending (Provider Error)"
         elif not booking.virtual_meeting_requested:
             booking.meeting_link = None
 

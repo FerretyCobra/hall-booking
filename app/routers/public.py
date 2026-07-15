@@ -9,6 +9,9 @@ from ..database import get_db
 from ..models import Hall, HallFeature, Booking, FeatureCatalog, FeatureOption, DropdownConfig
 from ..schemas import BookingIn, CancelIn, BookingUpdateIn
 from ..services import bookings as booking_svc
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", tags=["public"])
 
@@ -267,8 +270,12 @@ def approve_by_token(token: str, db: Session = Depends(get_db)):
     
     # Generate meeting link if requested
     if booking.virtual_meeting_requested and not booking.meeting_link:
-        provider = get_active_meeting_provider()
-        booking.meeting_link = provider.create_meeting(booking.id, booking.purpose or "Meeting")
+        try:
+            provider = get_active_meeting_provider()
+            booking.meeting_link = provider.create_meeting(booking.id, booking.purpose or "Meeting")
+        except Exception as e:
+            logger.error(f"Failed to generate virtual meeting link for confirmed booking {booking.id}: {e}")
+            booking.meeting_link = "Pending (Provider Error)"
 
     db.commit()
     
